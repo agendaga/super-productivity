@@ -99,3 +99,17 @@ These apply to all state-related work. **One user intent = one op; replayed/remo
 16. **Sync PR flow:** at most five open (more waits as a draft PR or issue). Before ready, a fresh-context review-and-improve subagent sees only the branch, diff, tracker and [`feature-review-guide.md`](docs/feature-review-guide.md); findings go fixed/not fixed in the PR body's "Review" section, not PR comments. An agent never approves its own sync PR. → same section.
 
 Rules 12–16 are review-enforced.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `agendaga/super-productivity`, via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical roles map to identical label strings (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the root, plus `ARCHITECTURE-DECISIONS.md`. See `docs/agents/domain.md`.
