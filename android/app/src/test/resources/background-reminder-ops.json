@@ -385,7 +385,8 @@
           "deadlineWithTime",
           "deadlineRemindAt",
           "reminderId",
-          "modified"
+          "modified",
+          "relationships"
         ]
       }
     }
