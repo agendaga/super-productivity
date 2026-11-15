@@ -267,18 +267,26 @@ export const selectStartableTasksForActiveContext = createSelector(
   },
 );
 
+const sortActiveContextFirst = (
+  allActiveTasks: Task[],
+  forActiveContext: Task[],
+  includeParents: boolean,
+): Task[] => {
+  // Use Set for O(1) lookup instead of O(n) .includes() in filter
+  const activeContextIdSet = new Set(forActiveContext.map((item) => item.id));
+  const otherTasks = allActiveTasks.filter(
+    (task): task is Task =>
+      (includeParents || !!task.parentId || !task.subTaskIds?.length) &&
+      !activeContextIdSet.has(task.id),
+  );
+  return [...forActiveContext, ...otherTasks].sort(sortDoneLast);
+};
+
 export const selectTrackableTasksActiveContextFirst = createSelector(
   selectAllTasksInActiveProjects,
   selectStartableTasksForActiveContext,
-  (allActiveTasks, forActiveContext): Task[] => {
-    // Use Set for O(1) lookup instead of O(n) .includes() in filter
-    const activeContextIdSet = new Set(forActiveContext.map((item) => item.id));
-    const otherTasks = allActiveTasks.filter(
-      (task): task is Task =>
-        (!!task.parentId || !task.subTaskIds?.length) && !activeContextIdSet.has(task.id),
-    );
-    return [...forActiveContext, ...otherTasks].sort(sortDoneLast);
-  },
+  (allActiveTasks, forActiveContext): Task[] =>
+    sortActiveContextFirst(allActiveTasks, forActiveContext, false),
 );
 
 export const selectStartableTasksActiveContextFirst = createSelector(
@@ -286,6 +294,19 @@ export const selectStartableTasksActiveContextFirst = createSelector(
   (trackableTasks): Task[] => {
     return trackableTasks.filter((task) => !task.isDone);
   },
+);
+
+/** Like selectTrackableTasksActiveContextFirst, but tasks with subtasks stay in the list. */
+export const selectTrackableTasksWithParentsActiveContextFirst = createSelector(
+  selectAllTasksInActiveProjects,
+  selectStartableTasksForActiveContext,
+  (allActiveTasks, forActiveContext): Task[] =>
+    sortActiveContextFirst(allActiveTasks, forActiveContext, true),
+);
+
+export const selectStartableTasksWithParentsActiveContextFirst = createSelector(
+  selectTrackableTasksWithParentsActiveContextFirst,
+  (trackableTasks): Task[] => trackableTasks.filter((task) => !task.isDone),
 );
 
 /**

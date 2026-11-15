@@ -15,7 +15,9 @@
             <span class="linked-tasks__meta">{{ row.projectTitle }}</span>
           }
           @if (row.isArchived) {
-            <span class="linked-tasks__meta">{{ T.F.TASK.LINKED_TASKS.ARCHIVED | translate }}</span>
+            <span class="linked-tasks__meta">{{
+              T.F.TASK.LINKED_TASKS.ARCHIVED | translate
+            }}</span>
           }
           @if (row.canRemove) {
             <button
@@ -42,11 +44,15 @@
       (keydown)="$event.stopPropagation()"
     >
       @for (type of linkableTypes; track type) {
-        <option [value]="type">{{ typeLabelKeys[type] | translate }}</option>
+        <option [value]="type">{{ typeLabelKeyOf(type) | translate }}</option>
       }
     </select>
     @for (pickerKey of pickerKeys(); track pickerKey) {
-      <select-task (taskChange)="onPickerChange($event)"></select-task>
+      <select-task
+        (taskChange)="onPickerChange($event)"
+        [isIncludeParentTasks]="true"
+        [excludedTaskIds]="excludedTaskIds()"
+      ></select-task>
     }
   </div>
 </div>
