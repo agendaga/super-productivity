@@ -255,17 +255,15 @@ describe('TaskDetailPanelComponent', () => {
 
   describe('linked tasks panel', () => {
     const linkedItem = (): HTMLElement =>
-      (
-        fixture.nativeElement.querySelector('task-linked-tasks') as HTMLElement
-      ).closest('task-detail-item') as HTMLElement;
+      (fixture.nativeElement.querySelector('task-linked-tasks') as HTMLElement).closest(
+        'task-detail-item',
+      ) as HTMLElement;
 
     it('sits directly below the subtask panel', () => {
       const subTaskItem = linkedItem().previousElementSibling as HTMLElement;
 
       expect(subTaskItem.tagName.toLowerCase()).toBe('task-detail-item');
-      expect(subTaskItem.textContent).toContain(
-        T.F.TASK.ADDITIONAL_INFO.SUB_TASKS_EMPTY,
-      );
+      expect(subTaskItem.textContent).toContain(T.F.TASK.ADDITIONAL_INFO.SUB_TASKS_EMPTY);
     });
 
     it('starts collapsed', () => {
