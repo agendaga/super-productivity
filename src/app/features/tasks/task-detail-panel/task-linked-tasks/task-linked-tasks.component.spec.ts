@@ -127,6 +127,10 @@ describe('TaskLinkedTasksComponent', () => {
     expect(texts[0]).toContain('Target');
     expect(texts[1]).toContain(T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY);
     expect(texts[1]).toContain('Blocker');
+
+    (rows()[0].querySelector('.linked-tasks__open') as HTMLElement).click();
+
+    expect(mockNavigate.navigate).toHaveBeenCalledOnceWith('b', false);
   });
 
   it('adds the chosen type to this task only, keeping its existing links', async () => {
@@ -263,36 +267,17 @@ describe('TaskLinkedTasksComponent', () => {
     expect(mockTaskService.update).toHaveBeenCalledOnceWith('b', { relationships: [] });
   });
 
-  it('shows a link to an archived task but offers no removal for it', async () => {
-    await setup([createMockTask({ id: 'a', title: 'Source' })], 'a', [
-      createMockTask({ id: 'c', title: 'Old', relationships: [rel('a', 'blocks')] }),
-    ]);
+  it('omits archived-style targets and leaves their stored relationship untouched', async () => {
+    const source = createMockTask({
+      id: 'a',
+      title: 'Source',
+      relationships: [rel('c', 'blocks')],
+    });
+    await setup([source], 'a', [createMockTask({ id: 'c', title: 'Old' })]);
 
-    expect(rows().length).toBe(1);
-    expect(rows()[0].textContent).toContain(T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY);
-    expect(rows()[0].textContent).toContain('Old');
-    expect(fixture.nativeElement.querySelector('.linked-tasks__remove')).toBeNull();
-  });
-
-  it('opens a linked task, flagging archived targets', async () => {
-    await setup(
-      [
-        createMockTask({
-          id: 'a',
-          title: 'Source',
-          relationships: [rel('b', 'related to'), rel('c', 'related to')],
-        }),
-        createMockTask({ id: 'b', title: 'Active' }),
-      ],
-      'a',
-      [createMockTask({ id: 'c', title: 'Old' })],
-    );
-
-    (rows()[0].querySelector('.linked-tasks__open') as HTMLElement).click();
-    (rows()[1].querySelector('.linked-tasks__open') as HTMLElement).click();
-
-    expect(mockNavigate.navigate).toHaveBeenCalledWith('b', false);
-    expect(mockNavigate.navigate).toHaveBeenCalledWith('c', true);
+    expect(rows()).toHaveSize(0);
+    expect(source.relationships).toEqual([rel('c', 'blocks')]);
+    expect(mockTaskService.getArchivedTasks).not.toHaveBeenCalled();
   });
 
   describe('creating a task from the picker', () => {

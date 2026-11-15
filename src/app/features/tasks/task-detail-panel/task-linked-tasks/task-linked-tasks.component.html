@@ -7,28 +7,21 @@
           <button
             class="linked-tasks__open"
             mat-button
-            (click)="openLinkedTask(row)"
+            (click)="openLinkedTask(row.link)"
           >
             <span class="linked-tasks__title">{{ row.link.task.title }}</span>
           </button>
           @if (row.projectTitle) {
             <span class="linked-tasks__meta">{{ row.projectTitle }}</span>
           }
-          @if (row.isArchived) {
-            <span class="linked-tasks__meta">{{
-              T.F.TASK.LINKED_TASKS.ARCHIVED | translate
-            }}</span>
-          }
-          @if (row.canRemove) {
-            <button
-              class="linked-tasks__remove"
-              mat-icon-button
-              [attr.aria-label]="T.F.TASK.LINKED_TASKS.REMOVE | translate"
-              (click)="removeLink(row)"
-            >
-              <mat-icon>close</mat-icon>
-            </button>
-          }
+          <button
+            class="linked-tasks__remove"
+            mat-icon-button
+            [attr.aria-label]="T.F.TASK.LINKED_TASKS.REMOVE | translate"
+            (click)="removeLink(row)"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
         </li>
       }
     </ul>

@@ -204,19 +204,11 @@ export const removeRelationshipsToTasks = (
 
 /**
  * Linked tasks of `taskId`, merging relationships stored on the task with those
- * stored on other tasks that point at it. Targets missing from both the active
- * state and `archivedTasks` are dangling and skipped.
+ * stored on other live tasks that point at it. Targets outside the task state
+ * are skipped without changing their stored relationships.
  */
-export const getLinkedTasks = (
-  taskState: TaskState,
-  taskId: string,
-  archivedTasks: readonly Task[] = [],
-): LinkedTask[] => {
-  const archivedById = new Map(archivedTasks.map((task) => [task.id, task]));
-  const findTask = (id: string): Task | undefined =>
-    taskState.entities[id] ?? archivedById.get(id);
-
-  const source = findTask(taskId);
+export const getLinkedTasks = (taskState: TaskState, taskId: string): LinkedTask[] => {
+  const source = taskState.entities[taskId];
   if (!source) return [];
 
   const result: LinkedTask[] = [];
@@ -230,15 +222,12 @@ export const getLinkedTasks = (
   };
 
   for (const relationship of source.relationships ?? []) {
-    const target = findTask(relationship.targetTaskId);
+    const target = taskState.entities[relationship.targetTaskId];
     if (target) add(target, relationship.type);
   }
 
-  const holders = [
-    ...taskState.ids.map((id) => taskState.entities[id]),
-    ...archivedTasks,
-  ];
-  for (const holder of holders) {
+  for (const id of taskState.ids) {
+    const holder = taskState.entities[id];
     if (!holder) continue;
     for (const relationship of holder.relationships ?? []) {
       if (relationship.targetTaskId === taskId) {
