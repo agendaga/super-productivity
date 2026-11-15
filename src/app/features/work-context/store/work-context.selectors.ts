@@ -310,6 +310,38 @@ export const selectStartableTasksWithParentsActiveContextFirst = createSelector(
 );
 
 /**
+ * Active-context tasks with parents kept: each context task is followed by its
+ * subtasks. Unlike selectTrackableTasksForActiveContext, nothing is swapped out.
+ */
+export const selectTrackableTasksWithParentsForActiveContext = createSelector(
+  selectActiveWorkContext,
+  selectTaskEntities,
+  (activeContext, entities): Task[] => {
+    const tasks: Task[] = [];
+    activeContext.taskIds.forEach((id) => {
+      const task: Task | undefined = entities[id];
+      if (!task) {
+        devError('Task not found');
+        return;
+      }
+      tasks.push(task);
+      (task.subTaskIds ?? []).forEach((sid) => {
+        const subTask: Task | undefined = entities[sid];
+        if (subTask) {
+          tasks.push(subTask);
+        }
+      });
+    });
+    return tasks.sort(sortDoneLast);
+  },
+);
+
+export const selectStartableTasksWithParentsForActiveContext = createSelector(
+  selectTrackableTasksWithParentsForActiveContext,
+  excludeDoneTasks,
+);
+
+/**
  * Ids of the NOT-done tasks in the active context — the move-up/down reducers
  * skip over everything absent from this list. Historically misnamed
  * `selectDoneTaskIdsForActiveContext`; the matching `doneTaskIds` op payload

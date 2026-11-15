@@ -20,8 +20,10 @@ import { Store } from '@ngrx/store';
 import {
   selectStartableTasksActiveContextFirst,
   selectStartableTasksWithParentsActiveContextFirst,
+  selectStartableTasksWithParentsForActiveContext,
   selectTrackableTasksActiveContextFirst,
   selectTrackableTasksWithParentsActiveContextFirst,
+  selectTrackableTasksWithParentsForActiveContext,
 } from '../../work-context/store/work-context.selectors';
 import { Project } from '../../project/project.model';
 import { selectAllProjects } from '../../project/store/project.selectors';
@@ -197,6 +199,13 @@ export class SelectTaskComponent {
     isIncludeParentTasks: boolean,
   ): Observable<Task[]> {
     if (isLimitToProject) {
+      if (isIncludeParentTasks) {
+        return this._store.select(
+          isIncludeDoneTasks
+            ? selectTrackableTasksWithParentsForActiveContext
+            : selectStartableTasksWithParentsForActiveContext,
+        );
+      }
       return isIncludeDoneTasks
         ? this._workContextService.trackableTasksForActiveContext$
         : this._workContextService.startableTasksForActiveContext$;
