@@ -19,6 +19,9 @@ import { MarkdownModule } from 'ngx-markdown';
 import { DEFAULT_TASK, TaskDetailTargetPanel, TaskWithSubTasks } from '../task.model';
 import { TaskDetailItemComponent } from './task-additional-info-item/task-detail-item.component';
 import { TaskContextMenuComponent } from '../task-context-menu/task-context-menu.component';
+import { TaskLinkedTasksComponent } from './task-linked-tasks/task-linked-tasks.component';
+import { T } from '../../../t.const';
+import { NavigateToTaskService } from '../../../core-ui/navigate-to-task/navigate-to-task.service';
 
 const MOCK_TASK: TaskWithSubTasks = {
   ...(DEFAULT_TASK as TaskWithSubTasks),
@@ -48,12 +51,19 @@ describe('TaskDetailPanelComponent', () => {
     ]);
     mockTaskService = jasmine.createSpyObj(
       'TaskService',
-      ['update', 'setSelectedId', 'focusTaskIfPossible', 'addSubTaskTo'],
+      [
+        'update',
+        'setSelectedId',
+        'focusTaskIfPossible',
+        'addSubTaskTo',
+        'getArchivedTasks',
+      ],
       {
         taskDetailPanelTargetPanel$: of(null),
         selectedTaskId: jasmine.createSpy().and.returnValue(null),
       },
     );
+    mockTaskService.getArchivedTasks.and.returnValue(Promise.resolve([]));
     const mockLayoutService = jasmine.createSpyObj('LayoutService', [], {
       isShowList: jasmine.createSpy().and.returnValue(true),
       isXs,
@@ -116,9 +126,13 @@ describe('TaskDetailPanelComponent', () => {
         { provide: DateTimeFormatService, useValue: mockDateTimeFormatService },
         { provide: Store, useValue: mockStore },
         { provide: MentionConfigService, useValue: { mentionConfig$: EMPTY } },
+        { provide: NavigateToTaskService, useValue: { navigate: () => undefined } },
       ],
     })
       .overrideComponent(TaskContextMenuComponent, {
+        set: { template: '', imports: [] },
+      })
+      .overrideComponent(TaskLinkedTasksComponent, {
         set: { template: '', imports: [] },
       })
       .compileComponents();
@@ -237,6 +251,28 @@ describe('TaskDetailPanelComponent', () => {
 
       expect(mockAttachmentService.addAttachment).not.toHaveBeenCalled();
     }));
+  });
+
+  describe('linked tasks panel', () => {
+    const linkedItem = (): HTMLElement =>
+      (
+        fixture.nativeElement.querySelector('task-linked-tasks') as HTMLElement
+      ).closest('task-detail-item') as HTMLElement;
+
+    it('sits directly below the subtask panel', () => {
+      const subTaskItem = linkedItem().previousElementSibling as HTMLElement;
+
+      expect(subTaskItem.tagName.toLowerCase()).toBe('task-detail-item');
+      expect(subTaskItem.textContent).toContain(
+        T.F.TASK.ADDITIONAL_INFO.SUB_TASKS_EMPTY,
+      );
+    });
+
+    it('starts collapsed', () => {
+      const panel = linkedItem().querySelector('mat-expansion-panel') as HTMLElement;
+
+      expect(panel.classList).not.toContain('mat-expanded');
+    });
   });
 
   describe('mobile task actions', () => {

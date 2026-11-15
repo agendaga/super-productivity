@@ -1,0 +1,52 @@
+<div class="linked-tasks">
+  @if (rows().length) {
+    <ul class="linked-tasks__list">
+      @for (row of rows(); track row.key) {
+        <li class="linked-tasks__item">
+          <span class="linked-tasks__type">{{ row.typeLabelKey | translate }}</span>
+          <button
+            class="linked-tasks__open"
+            mat-button
+            (click)="openLinkedTask(row)"
+          >
+            <span class="linked-tasks__title">{{ row.link.task.title }}</span>
+          </button>
+          @if (row.projectTitle) {
+            <span class="linked-tasks__meta">{{ row.projectTitle }}</span>
+          }
+          @if (row.isArchived) {
+            <span class="linked-tasks__meta">{{ T.F.TASK.LINKED_TASKS.ARCHIVED | translate }}</span>
+          }
+          @if (row.canRemove) {
+            <button
+              class="linked-tasks__remove"
+              mat-icon-button
+              [attr.aria-label]="T.F.TASK.LINKED_TASKS.REMOVE | translate"
+              (click)="removeLink(row)"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="linked-tasks__empty">{{ T.F.TASK.LINKED_TASKS.EMPTY | translate }}</p>
+  }
+
+  <div class="linked-tasks__add">
+    <select
+      class="linked-tasks__type-select"
+      [attr.aria-label]="T.F.TASK.LINKED_TASKS.TYPE_LABEL | translate"
+      (change)="onTypeChange($event)"
+      (keydown)="$event.stopPropagation()"
+    >
+      @for (type of linkableTypes; track type) {
+        <option [value]="type">{{ typeLabelKeys[type] | translate }}</option>
+      }
+    </select>
+    @for (pickerKey of pickerKeys(); track pickerKey) {
+      <select-task (taskChange)="onPickerChange($event)"></select-task>
+    }
+  </div>
+</div>

@@ -40,6 +40,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edit-attachment/dialog-edit-task-attachment.component';
 import { TaskDetailItemComponent } from './task-additional-info-item/task-detail-item.component';
+import { TaskLinkedTasksComponent } from './task-linked-tasks/task-linked-tasks.component';
 import { IssueData, IssueProviderJira } from '../../issue/issue.model';
 import { ICAL_TYPE, JIRA_TYPE } from '../../issue/issue.const';
 import { HISTORY_STATE, IS_ELECTRON } from '../../../app.constants';
@@ -117,6 +118,7 @@ import { isWontDoTask } from '../util/is-wont-do-task';
   imports: [
     TaskTitleComponent,
     TaskDetailItemComponent,
+    TaskLinkedTasksComponent,
     MatIcon,
     MatIconButton,
     MatTooltip,
@@ -182,6 +184,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   // so the input is visible even when triggered while the section is collapsed.
   readonly isAddSubtaskInputVisible = signal(false);
   readonly isSubTasksExpanded = signal(false);
+  readonly isLinkedTasksExpanded = signal(false);
 
   // Constants
   IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
