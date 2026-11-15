@@ -1,11 +1,5 @@
 import { Update } from '@ngrx/entity';
-import {
-  Task,
-  TASK_RELATIONSHIP_TYPES,
-  TaskRelationship,
-  TaskRelationshipType,
-  TaskState,
-} from './task.model';
+import { Task, TaskRelationship, TaskRelationshipType, TaskState } from './task.model';
 import { taskAdapter } from './store/task.adapter';
 
 export interface LinkedTask {
@@ -34,16 +28,6 @@ export const getInverseTaskRelationshipType = (
     case 'caused by':
       return 'causes';
   }
-};
-
-const isTaskRelationship = (value: unknown): value is TaskRelationship => {
-  if (typeof value !== 'object' || value === null) return false;
-  const { targetTaskId, type } = value as Partial<TaskRelationship>;
-  return (
-    typeof targetTaskId === 'string' &&
-    targetTaskId.length > 0 &&
-    TASK_RELATIONSHIP_TYPES.some((allowed) => allowed === type)
-  );
 };
 
 export const isSameRelationship = (a: TaskRelationship, b: TaskRelationship): boolean =>
@@ -95,7 +79,7 @@ const isTaskRelationshipAllowed = (
  * Returns the relationships to store on `source`, given the ones stored now and
  * the requested list. Entries already stored are kept without re-checking, so
  * saving an unrelated change never drops a link. New entries must pass the
- * validity rule. Malformed entries and duplicates are dropped.
+ * validity rule. Duplicates are dropped.
  */
 export const sanitizeTaskRelationships = ({
   source,
@@ -105,12 +89,10 @@ export const sanitizeTaskRelationships = ({
 }: {
   source: TaskRelationshipEndpoint;
   stored: readonly TaskRelationship[];
-  requested: unknown;
+  requested: readonly TaskRelationship[];
   getTask: (id: string) => Task | undefined;
 }): TaskRelationship[] => {
-  if (!Array.isArray(requested)) return [...stored];
-
-  const candidates = requested.filter(isTaskRelationship);
+  const candidates = requested;
   const accepted = new Set<TaskRelationship>();
   const isAlreadyAccepted = (candidate: TaskRelationship): boolean =>
     [...accepted].some((a) => isSameRelationship(a, candidate));
