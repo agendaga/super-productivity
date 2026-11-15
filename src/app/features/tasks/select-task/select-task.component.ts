@@ -12,14 +12,16 @@ import {
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, UntypedFormControl } from '@angular/forms';
 import { Task } from '../task.model';
-import { combineLatest } from 'rxjs';
+import { combineLatest, Observable } from 'rxjs';
 import { startWith, switchMap } from 'rxjs/operators';
 import { T } from '../../../t.const';
 import { WorkContextService } from '../../work-context/work-context.service';
 import { Store } from '@ngrx/store';
 import {
   selectStartableTasksActiveContextFirst,
+  selectStartableTasksWithParentsActiveContextFirst,
   selectTrackableTasksActiveContextFirst,
+  selectTrackableTasksWithParentsActiveContextFirst,
 } from '../../work-context/store/work-context.selectors';
 import { Project } from '../../project/project.model';
 import { selectAllProjects } from '../../project/store/project.selectors';
@@ -75,6 +77,12 @@ export class SelectTaskComponent {
   readonly isLimitToProject = input<boolean>(false);
   readonly isIncludeDoneTasks = input<boolean>(false);
   readonly isShowSuggestionsWithoutSearch = input<boolean>(false);
+  /** Lets parent tasks (ones with subtasks) be picked. */
+  readonly isIncludeParentTasks = input<boolean>(false);
+  /** Tasks that never appear in the list. */
+  readonly excludedTaskIds = input<readonly string[]>([]);
+  /** Project for a task created from the typed title when it names none. */
+  readonly defaultProjectId = input<string | null>(null);
 
   @ViewChild(MatAutocompleteTrigger)
   autocompleteTrigger?: MatAutocompleteTrigger;
@@ -87,19 +95,20 @@ export class SelectTaskComponent {
     combineLatest([
       toObservable(this.isLimitToProject),
       toObservable(this.isIncludeDoneTasks),
+      toObservable(this.isIncludeParentTasks),
     ]).pipe(
-      switchMap(([isLimitToProject, isIncludeDoneTasks]) =>
-        isLimitToProject
-          ? isIncludeDoneTasks
-            ? this._workContextService.trackableTasksForActiveContext$
-            : this._workContextService.startableTasksForActiveContext$
-          : isIncludeDoneTasks
-            ? this._store.select(selectTrackableTasksActiveContextFirst)
-            : this._store.select(selectStartableTasksActiveContextFirst),
+      switchMap(([isLimitToProject, isIncludeDoneTasks, isIncludeParentTasks]) =>
+        this._selectPickableTasks(
+          isLimitToProject,
+          isIncludeDoneTasks,
+          isIncludeParentTasks,
+        ),
       ),
     ),
     { initialValue: [] as Task[] },
   );
+
+  private readonly _excludedIds = computed(() => new Set(this.excludedTaskIds()));
 
   private readonly _isPanelOpen = signal<boolean>(false);
 
@@ -116,23 +125,40 @@ export class SelectTaskComponent {
     return projectLookup;
   });
 
-  readonly filteredTasks = computed(() => {
+  private readonly _typedText = computed(() => {
     const taskOrTitle = this._taskOrTitle();
-    if (typeof taskOrTitle === 'string') {
-      const projectParseResult = this._globalConfigService.shortSyntax()?.isEnableProject
-        ? parseProjectChanges(
-            { title: taskOrTitle },
-            this._projects().filter((project) => !project.isArchived),
-          )
-        : {};
-      const searchTerm = (projectParseResult.title ?? taskOrTitle).trim().toLowerCase();
-      const projectId = projectParseResult.projectId;
+    if (typeof taskOrTitle !== 'string') {
+      return null;
+    }
+    const projectParseResult = this._globalConfigService.shortSyntax()?.isEnableProject
+      ? parseProjectChanges(
+          { title: taskOrTitle },
+          this._projects().filter((project) => !project.isArchived),
+        )
+      : {};
+    return {
+      searchTerm: (projectParseResult.title ?? taskOrTitle).trim().toLowerCase(),
+      projectId: projectParseResult.projectId,
+    };
+  });
+
+  readonly createProjectId = computed(
+    () => this._typedText()?.projectId ?? this.defaultProjectId(),
+  );
+
+  readonly filteredTasks = computed(() => {
+    const typedText = this._typedText();
+    if (typedText) {
+      const { searchTerm, projectId } = typedText;
 
       if (!searchTerm && !projectId && !this.isShowSuggestionsWithoutSearch()) {
         return [];
       }
 
       return this._tasks().filter((task) => {
+        if (this._excludedIds().has(task.id)) {
+          return false;
+        }
         if (projectId && task.projectId !== projectId) {
           return false;
         }
@@ -159,6 +185,30 @@ export class SelectTaskComponent {
         this.taskChange.emit(taskOrTitle);
       }
     });
+  }
+
+  private _selectPickableTasks(
+    isLimitToProject: boolean,
+    isIncludeDoneTasks: boolean,
+    isIncludeParentTasks: boolean,
+  ): Observable<Task[]> {
+    if (isLimitToProject) {
+      return isIncludeDoneTasks
+        ? this._workContextService.trackableTasksForActiveContext$
+        : this._workContextService.startableTasksForActiveContext$;
+    }
+    if (isIncludeParentTasks) {
+      return this._store.select(
+        isIncludeDoneTasks
+          ? selectTrackableTasksWithParentsActiveContextFirst
+          : selectStartableTasksWithParentsActiveContextFirst,
+      );
+    }
+    return this._store.select(
+      isIncludeDoneTasks
+        ? selectTrackableTasksActiveContextFirst
+        : selectStartableTasksActiveContextFirst,
+    );
   }
 
   // TODO: Skipped for migration because:

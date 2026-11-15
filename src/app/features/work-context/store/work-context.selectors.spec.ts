@@ -3,11 +3,13 @@ import { fakeEntityStateFromArray } from '../../../util/fake-entity-state-from-a
 import {
   selectActiveWorkContext,
   selectStartableTasksForActiveContext,
+  selectStartableTasksWithParentsActiveContextFirst,
   selectTimelineTasks,
   selectTodayTaskIds,
   selectTodayTagRepair,
   selectTrackableTasksActiveContextFirst,
   selectTrackableTasksForActiveContext,
+  selectTrackableTasksWithParentsActiveContextFirst,
   selectUndoneTodayTaskIds,
 } from './work-context.selectors';
 import { WorkContext, WorkContextType } from '../work-context.model';
@@ -351,6 +353,55 @@ describe('workContext selectors', () => {
         [],
       );
       expect(result.length).toBe(2);
+    });
+  });
+
+  describe('parent-inclusive active-context-first selectors', () => {
+    const parent = {
+      id: 'P',
+      subTaskIds: ['S'],
+      tagIds: [],
+      isDone: false,
+    } as Partial<TaskCopy> as TaskCopy;
+    const child = {
+      id: 'S',
+      parentId: 'P',
+      subTaskIds: [],
+      tagIds: [],
+      isDone: false,
+    } as Partial<TaskCopy> as TaskCopy;
+    const loner = {
+      id: 'L',
+      subTaskIds: [],
+      tagIds: [],
+      isDone: false,
+    } as Partial<TaskCopy> as TaskCopy;
+    const doneParent = { ...parent, id: 'DP', isDone: true } as TaskCopy;
+
+    it('keeps parent tasks in the trackable list', () => {
+      const result = selectTrackableTasksWithParentsActiveContextFirst.projector(
+        [parent, child, loner],
+        [],
+      );
+      expect(result.map((t) => t.id)).toEqual(['P', 'S', 'L']);
+    });
+
+    it('still drops parent tasks from the default trackable list', () => {
+      const result = selectTrackableTasksActiveContextFirst.projector(
+        [parent, child, loner],
+        [],
+      );
+      expect(result.map((t) => t.id)).toEqual(['S', 'L']);
+    });
+
+    it('keeps parent tasks but drops done tasks in the startable list', () => {
+      const result = selectStartableTasksWithParentsActiveContextFirst.projector([
+        doneParent,
+        parent,
+        child,
+        loner,
+      ]);
+      expect(result.map((t) => t.id)).toEqual(['P', 'S', 'L']);
     });
   });
 

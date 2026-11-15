@@ -9,6 +9,10 @@ import { WorkContextService } from '../../work-context/work-context.service';
 import { Task } from '../task.model';
 import { Project } from '../../project/project.model';
 import { selectAllProjects } from '../../project/store/project.selectors';
+import {
+  selectStartableTasksWithParentsActiveContextFirst,
+  selectTrackableTasksWithParentsActiveContextFirst,
+} from '../../work-context/store/work-context.selectors';
 import { GlobalConfigService } from '../../config/global-config.service';
 import { ShortSyntaxConfig } from '../../config/global-config.model';
 import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const';
@@ -20,6 +24,7 @@ describe('SelectTaskComponent', () => {
   let tasksSubject: BehaviorSubject<Task[]>;
   let projectsSubject: BehaviorSubject<Project[]>;
   let shortSyntaxConfig: WritableSignal<ShortSyntaxConfig | undefined>;
+  let parentTasksSubject: BehaviorSubject<Task[]>;
 
   const validTask: Task = {
     id: 'task-1',
@@ -50,13 +55,21 @@ describe('SelectTaskComponent', () => {
 
   beforeEach(async () => {
     tasksSubject = new BehaviorSubject<Task[]>([validTask]);
+    parentTasksSubject = new BehaviorSubject<Task[]>([validTask]);
     projectsSubject = new BehaviorSubject<Project[]>([]);
     shortSyntaxConfig = signal(DEFAULT_GLOBAL_CONFIG.shortSyntax);
 
     mockStore = jasmine.createSpyObj('Store', ['select', 'dispatch']);
-    mockStore.select.and.callFake((selector) =>
-      selector === selectAllProjects ? projectsSubject : tasksSubject,
-    );
+    mockStore.select.and.callFake((selector) => {
+      if (selector === selectAllProjects) return projectsSubject;
+      if (
+        selector === selectStartableTasksWithParentsActiveContextFirst ||
+        selector === selectTrackableTasksWithParentsActiveContextFirst
+      ) {
+        return parentTasksSubject;
+      }
+      return tasksSubject;
+    });
 
     const mockWorkContextService = jasmine.createSpyObj('WorkContextService', [], {
       startableTasksForActiveContext$: tasksSubject,
@@ -182,6 +195,98 @@ describe('SelectTaskComponent', () => {
 
       const result = component.filteredTasks();
       expect(result.map((task) => task.id)).toEqual(['task-2']);
+    });
+  });
+
+  describe('isIncludeParentTasks', () => {
+    const parentTask = {
+      ...validTask,
+      id: 'parent-1',
+      title: 'Parent project',
+      subTaskIds: ['sub-1'],
+    } as Task;
+
+    it('lists parent tasks when turned on', () => {
+      parentTasksSubject.next([validTask, parentTask]);
+      fixture.componentRef.setInput('isIncludeParentTasks', true);
+      fixture.detectChanges();
+
+      component.taskSelectCtrl.setValue('parent');
+      fixture.detectChanges();
+
+      expect(component.filteredTasks().map((task) => task.id)).toEqual(['parent-1']);
+    });
+
+    it('does not list parent tasks by default', () => {
+      parentTasksSubject.next([validTask, parentTask]);
+
+      component.taskSelectCtrl.setValue('parent');
+      fixture.detectChanges();
+
+      expect(component.filteredTasks()).toEqual([]);
+    });
+  });
+
+  describe('excludedTaskIds', () => {
+    const otherTask = { ...validTask, id: 'task-4', title: 'Valid other' } as Task;
+
+    it('never lists an excluded task', () => {
+      tasksSubject.next([validTask, otherTask]);
+      fixture.componentRef.setInput('excludedTaskIds', ['task-1']);
+      fixture.detectChanges();
+
+      component.taskSelectCtrl.setValue('valid');
+      fixture.detectChanges();
+
+      expect(component.filteredTasks().map((task) => task.id)).toEqual(['task-4']);
+    });
+
+    it('lists every match when nothing is excluded', () => {
+      tasksSubject.next([validTask, otherTask]);
+
+      component.taskSelectCtrl.setValue('valid');
+      fixture.detectChanges();
+
+      expect(component.filteredTasks().map((task) => task.id)).toEqual([
+        'task-1',
+        'task-4',
+      ]);
+    });
+  });
+
+  describe('defaultProjectId', () => {
+    beforeEach(() => {
+      projectsSubject.next([
+        { id: 'project-1', title: 'Work' } as Project,
+        { id: 'project-2', title: 'Home' } as Project,
+      ]);
+    });
+
+    it('leaves the create project null by default', () => {
+      component.taskSelectCtrl.setValue('Buy milk');
+      fixture.detectChanges();
+
+      expect(component.createProjectId()).toBeNull();
+    });
+
+    it('is the create project when the typed title names no project', () => {
+      fixture.componentRef.setInput('defaultProjectId', 'project-1');
+      fixture.detectChanges();
+
+      component.taskSelectCtrl.setValue('Buy milk');
+      fixture.detectChanges();
+
+      expect(component.createProjectId()).toBe('project-1');
+    });
+
+    it('is overridden by +project in the typed title', () => {
+      fixture.componentRef.setInput('defaultProjectId', 'project-1');
+      fixture.detectChanges();
+
+      component.taskSelectCtrl.setValue('Buy milk +home');
+      fixture.detectChanges();
+
+      expect(component.createProjectId()).toBe('project-2');
     });
   });
 });

@@ -22,8 +22,10 @@ import { Task, TaskRelationshipType } from '../../task.model';
 import { TaskService } from '../../task.service';
 import {
   getInverseTaskRelationshipType,
+  getUnlinkableTaskIds,
   LinkedTask,
 } from '../../task-relationship.util';
+import { selectAllTasks } from '../../store/task.selectors';
 import { selectLinkedTasks } from '../../store/task-relationship.selectors';
 
 type LinkableRelationshipType = 'related to' | 'blocks' | 'causes';
@@ -72,6 +74,18 @@ export class TaskLinkedTasksComponent {
   private readonly _projects = toSignal(this._store.select(selectAllProjects), {
     initialValue: [] as Project[],
   });
+
+  private readonly _allTasks = toSignal(this._store.select(selectAllTasks), {
+    initialValue: [] as Task[],
+  });
+
+  readonly excludedTaskIds = computed(() =>
+    getUnlinkableTaskIds({
+      source: this.task(),
+      type: this.selectedType(),
+      candidates: this._allTasks(),
+    }),
+  );
 
   // Archived tasks are not in the active state, but their relationships still
   // count, so they are loaded for the task in view.

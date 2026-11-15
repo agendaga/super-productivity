@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -8,6 +8,7 @@ import { NavigateToTaskService } from '../../../../core-ui/navigate-to-task/navi
 import { TaskService } from '../../task.service';
 import { Task, TaskRelationship, TaskState } from '../../task.model';
 import { SelectTaskComponent } from '../../select-task/select-task.component';
+import { selectAllTasks } from '../../store/task.selectors';
 import { selectLinkedTasks } from '../../store/task-relationship.selectors';
 import { createMockTask } from '../../../../root-store/meta/task-shared-meta-reducers/test-utils';
 import { selectAllProjects } from '../../../project/store/project.selectors';
@@ -20,6 +21,8 @@ import { T } from '../../../../t.const';
 })
 class SelectTaskStubComponent {
   readonly taskChange = output<Task | string>();
+  readonly isIncludeParentTasks = input(false);
+  readonly excludedTaskIds = input<readonly string[]>([]);
 }
 
 const rel = (targetTaskId: string, type: TaskRelationship['type']): TaskRelationship => ({
@@ -51,7 +54,9 @@ describe('TaskLinkedTasksComponent', () => {
       select: (selector: unknown, props?: { taskId: string; archivedTasks?: Task[] }) =>
         selector === selectAllProjects
           ? of([])
-          : of(selectLinkedTasks.projector(taskState, props ?? { taskId: sourceId })),
+          : selector === selectAllTasks
+            ? of(tasks)
+            : of(selectLinkedTasks.projector(taskState, props ?? { taskId: sourceId })),
       dispatch: () => undefined,
     };
     mockTaskService = jasmine.createSpyObj('TaskService', ['update', 'getArchivedTasks']);
@@ -101,7 +106,11 @@ describe('TaskLinkedTasksComponent', () => {
       [
         createMockTask({ id: 'a', title: 'Source', relationships: [rel('b', 'blocks')] }),
         createMockTask({ id: 'b', title: 'Target' }),
-        createMockTask({ id: 'c', title: 'Blocker', relationships: [rel('a', 'blocks')] }),
+        createMockTask({
+          id: 'c',
+          title: 'Blocker',
+          relationships: [rel('a', 'blocks')],
+        }),
       ],
       'a',
     );
@@ -152,6 +161,74 @@ describe('TaskLinkedTasksComponent', () => {
     expect(mockTaskService.update).not.toHaveBeenCalled();
   });
 
+  describe('targets offered by the picker', () => {
+    const excluded = (): readonly string[] => picker().excludedTaskIds();
+
+    it('offers parent tasks as targets', async () => {
+      await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
+
+      expect(picker().isIncludeParentTasks()).toBeTrue();
+    });
+
+    it('excludes the source task, its parent and its subtasks', async () => {
+      await setup(
+        [
+          createMockTask({ id: 'p', title: 'Parent', subTaskIds: ['a', 'c'] }),
+          createMockTask({ id: 'a', title: 'Source', parentId: 'p', subTaskIds: ['s'] }),
+          createMockTask({ id: 's', title: 'Sub', parentId: 'a' }),
+          createMockTask({ id: 'c', title: 'Sibling', parentId: 'p' }),
+          createMockTask({ id: 'b', title: 'Other' }),
+        ],
+        'a',
+      );
+
+      expect(excluded()).toEqual(jasmine.arrayWithExactContents(['a', 'p', 's']));
+    });
+
+    it('excludes targets already linked with the chosen type, stored on either side', async () => {
+      await setup(
+        [
+          createMockTask({
+            id: 'a',
+            title: 'Source',
+            relationships: [rel('b', 'blocks')],
+          }),
+          createMockTask({ id: 'b', title: 'Target' }),
+          createMockTask({
+            id: 'c',
+            title: 'Mirrored',
+            relationships: [rel('a', 'blocked by')],
+          }),
+          createMockTask({ id: 'd', title: 'Free' }),
+        ],
+        'a',
+      );
+
+      chooseType('blocks');
+
+      expect(excluded()).toEqual(jasmine.arrayWithExactContents(['a', 'b', 'c']));
+    });
+
+    it('updates the excluded targets when the chosen type changes', async () => {
+      await setup(
+        [
+          createMockTask({
+            id: 'a',
+            title: 'Source',
+            relationships: [rel('b', 'related to')],
+          }),
+          createMockTask({ id: 'b', title: 'Target' }),
+        ],
+        'a',
+      );
+      expect(excluded()).toContain('b');
+
+      chooseType('blocks');
+
+      expect(excluded()).not.toContain('b');
+    });
+  });
+
   it('removes a relationship stored on this task', async () => {
     await setup(
       [
@@ -181,11 +258,9 @@ describe('TaskLinkedTasksComponent', () => {
   });
 
   it('shows a link to an archived task but offers no removal for it', async () => {
-    await setup(
-      [createMockTask({ id: 'a', title: 'Source' })],
-      'a',
-      [createMockTask({ id: 'c', title: 'Old', relationships: [rel('a', 'blocks')] })],
-    );
+    await setup([createMockTask({ id: 'a', title: 'Source' })], 'a', [
+      createMockTask({ id: 'c', title: 'Old', relationships: [rel('a', 'blocks')] }),
+    ]);
 
     expect(rows().length).toBe(1);
     expect(rows()[0].textContent).toContain(T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY);

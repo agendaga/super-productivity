@@ -129,6 +129,42 @@ export const sanitizeTaskRelationships = ({
     .map(({ targetTaskId, type }) => ({ targetTaskId, type }));
 };
 
+/**
+ * IDs of the `candidates` that `source` cannot take a new `type` relationship
+ * to, by the same rule `sanitizeTaskRelationships` applies on save. Covers the
+ * source itself, its parent and subtasks, and targets already linked with
+ * `type`, whether stored on the source or as a mirrored entry on the target.
+ */
+export const getUnlinkableTaskIds = ({
+  source,
+  type,
+  candidates,
+}: {
+  source: TaskRelationshipEndpoint & { relationships?: readonly TaskRelationship[] };
+  type: TaskRelationshipType;
+  candidates: readonly (TaskRelationshipEndpoint & {
+    relationships?: readonly TaskRelationship[];
+  })[];
+}): string[] =>
+  candidates
+    .filter((target) => {
+      const typesReadFromSource: TaskRelationshipType[] = [
+        ...(source.relationships ?? [])
+          .filter((r) => r.targetTaskId === target.id)
+          .map((r) => r.type),
+        ...(target.relationships ?? [])
+          .filter((r) => r.targetTaskId === source.id)
+          .map((r) => getInverseTaskRelationshipType(r.type)),
+      ];
+      return !isTaskRelationshipAllowed(
+        source,
+        target,
+        { targetTaskId: target.id, type },
+        typesReadFromSource,
+      );
+    })
+    .map((target) => target.id);
+
 /** Drops every relationship that points at one of `deletedIds` from the remaining tasks. */
 export const removeRelationshipsToTasks = (
   taskState: TaskState,
