@@ -36,12 +36,23 @@ const LINKABLE_TYPES: readonly LinkableRelationshipType[] = [
   'causes',
 ];
 
-const TYPE_LABEL_KEYS: Record<TaskRelationshipType, string> = {
-  'related to': T.F.TASK.LINKED_TASKS.TYPE_RELATED_TO,
-  blocks: T.F.TASK.LINKED_TASKS.TYPE_BLOCKS,
-  'blocked by': T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY,
-  causes: T.F.TASK.LINKED_TASKS.TYPE_CAUSES,
-  'caused by': T.F.TASK.LINKED_TASKS.TYPE_CAUSED_BY,
+const getTypeLabelKey = (type: TaskRelationshipType): string => {
+  switch (type) {
+    case 'related to':
+      return T.F.TASK.LINKED_TASKS.TYPE_RELATED_TO;
+    case 'blocks':
+      return T.F.TASK.LINKED_TASKS.TYPE_BLOCKS;
+    case 'blocked by':
+      return T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY;
+    case 'causes':
+      return T.F.TASK.LINKED_TASKS.TYPE_CAUSES;
+    case 'caused by':
+      return T.F.TASK.LINKED_TASKS.TYPE_CAUSED_BY;
+    default: {
+      const unreachable: never = type;
+      return unreachable;
+    }
+  }
 };
 
 const isSameRelationship = (
@@ -66,7 +77,7 @@ export class TaskLinkedTasksComponent {
 
   readonly T = T;
   readonly linkableTypes = LINKABLE_TYPES;
-  readonly typeLabelKeys = TYPE_LABEL_KEYS;
+  readonly typeLabelKeyOf = getTypeLabelKey;
   readonly selectedType = signal<LinkableRelationshipType>('related to');
   private readonly _pickerKey = signal(0);
   readonly pickerKeys = computed(() => [this._pickerKey()]);
@@ -128,7 +139,7 @@ export class TaskLinkedTasksComponent {
         isArchived,
         isStoredHere,
         canRemove: isStoredHere || !isArchived,
-        typeLabelKey: TYPE_LABEL_KEYS[link.type],
+        typeLabelKey: getTypeLabelKey(link.type),
         projectTitle: link.task.projectId
           ? projectsById.get(link.task.projectId)?.title
           : undefined,

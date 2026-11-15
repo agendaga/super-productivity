@@ -44,7 +44,7 @@
       (keydown)="$event.stopPropagation()"
     >
       @for (type of linkableTypes; track type) {
-        <option [value]="type">{{ typeLabelKeys[type] | translate }}</option>
+        <option [value]="type">{{ typeLabelKeyOf(type) | translate }}</option>
       }
     </select>
     @for (pickerKey of pickerKeys(); track pickerKey) {
