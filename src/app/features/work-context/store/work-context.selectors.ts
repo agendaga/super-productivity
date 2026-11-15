@@ -282,6 +282,8 @@ const sortActiveContextFirst = (
   return [...forActiveContext, ...otherTasks].sort(sortDoneLast);
 };
 
+const excludeDoneTasks = (tasks: Task[]): Task[] => tasks.filter((task) => !task.isDone);
+
 export const selectTrackableTasksActiveContextFirst = createSelector(
   selectAllTasksInActiveProjects,
   selectStartableTasksForActiveContext,
@@ -291,9 +293,7 @@ export const selectTrackableTasksActiveContextFirst = createSelector(
 
 export const selectStartableTasksActiveContextFirst = createSelector(
   selectTrackableTasksActiveContextFirst,
-  (trackableTasks): Task[] => {
-    return trackableTasks.filter((task) => !task.isDone);
-  },
+  excludeDoneTasks,
 );
 
 /** Like selectTrackableTasksActiveContextFirst, but tasks with subtasks stay in the list. */
@@ -306,7 +306,7 @@ export const selectTrackableTasksWithParentsActiveContextFirst = createSelector(
 
 export const selectStartableTasksWithParentsActiveContextFirst = createSelector(
   selectTrackableTasksWithParentsActiveContextFirst,
-  (trackableTasks): Task[] => trackableTasks.filter((task) => !task.isDone),
+  excludeDoneTasks,
 );
 
 /**
