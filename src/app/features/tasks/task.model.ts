@@ -81,6 +81,25 @@ export interface IssueFieldsForTask {
 /** 1 = Low, 2 = Medium, 3 = High. Higher numbers are more important. */
 export type TaskPriority = 1 | 2 | 3;
 
+/**
+ * Relationship type as stored on one end: `blocks`/`causes`/`related to` are the
+ * forward readings, `blocked by`/`caused by` the inverse readings used when the
+ * relationship is stored on the target's side (see GLOSSARY.md).
+ */
+export const TASK_RELATIONSHIP_TYPES = [
+  'related to',
+  'blocks',
+  'blocked by',
+  'causes',
+  'caused by',
+] as const;
+export type TaskRelationshipType = (typeof TASK_RELATIONSHIP_TYPES)[number];
+
+export interface TaskRelationship {
+  targetTaskId: string;
+  type: TaskRelationshipType;
+}
+
 // Extend the plugin Task type with app-specific fields
 // Omit issue fields from PluginTask to avoid conflict with IssueFieldsForTask
 export interface TaskCopy
@@ -169,6 +188,12 @@ export interface TaskCopy
    */
   wontDoOn?: number;
   parentId?: string;
+  /**
+   * Relationships stored on this task. Each fact lives on one end only; readers
+   * merge both ends (see task-relationship.util.ts). Missing means none.
+   * Clients predating the field ignore it.
+   */
+  relationships?: TaskRelationship[];
   remindAt?: number;
   repeatCfgId?: string;
   _hideSubTasksMode?: HideSubTasksMode;
