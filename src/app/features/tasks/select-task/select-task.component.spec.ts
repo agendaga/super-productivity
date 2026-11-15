@@ -11,7 +11,9 @@ import { Project } from '../../project/project.model';
 import { selectAllProjects } from '../../project/store/project.selectors';
 import {
   selectStartableTasksWithParentsActiveContextFirst,
+  selectStartableTasksWithParentsForActiveContext,
   selectTrackableTasksWithParentsActiveContextFirst,
+  selectTrackableTasksWithParentsForActiveContext,
 } from '../../work-context/store/work-context.selectors';
 import { GlobalConfigService } from '../../config/global-config.service';
 import { ShortSyntaxConfig } from '../../config/global-config.model';
@@ -64,7 +66,9 @@ describe('SelectTaskComponent', () => {
       if (selector === selectAllProjects) return projectsSubject;
       if (
         selector === selectStartableTasksWithParentsActiveContextFirst ||
-        selector === selectTrackableTasksWithParentsActiveContextFirst
+        selector === selectTrackableTasksWithParentsActiveContextFirst ||
+        selector === selectStartableTasksWithParentsForActiveContext ||
+        selector === selectTrackableTasksWithParentsForActiveContext
       ) {
         return parentTasksSubject;
       }
@@ -227,6 +231,38 @@ describe('SelectTaskComponent', () => {
     });
   });
 
+  describe('isLimitToProject with isIncludeParentTasks', () => {
+    const parentTask = {
+      ...validTask,
+      id: 'parent-1',
+      title: 'Parent project',
+      subTaskIds: ['sub-1'],
+    } as Task;
+
+    it('lists parent tasks of the active context when turned on', () => {
+      parentTasksSubject.next([validTask, parentTask]);
+      fixture.componentRef.setInput('isLimitToProject', true);
+      fixture.componentRef.setInput('isIncludeParentTasks', true);
+      fixture.detectChanges();
+
+      component.taskSelectCtrl.setValue('parent');
+      fixture.detectChanges();
+
+      expect(component.filteredTasks().map((task) => task.id)).toEqual(['parent-1']);
+    });
+
+    it('does not list parent tasks when limited to the project by default', () => {
+      parentTasksSubject.next([validTask, parentTask]);
+      fixture.componentRef.setInput('isLimitToProject', true);
+      fixture.detectChanges();
+
+      component.taskSelectCtrl.setValue('parent');
+      fixture.detectChanges();
+
+      expect(component.filteredTasks()).toEqual([]);
+    });
+  });
+
   describe('excludedTaskIds', () => {
     const otherTask = { ...validTask, id: 'task-4', title: 'Valid other' } as Task;
 
@@ -346,6 +382,28 @@ describe('SelectTaskComponent', () => {
       pressEnter();
 
       expect(created).toEqual([]);
+    });
+
+    it('does not create when an excluded task has the typed title', () => {
+      fixture.componentRef.setInput('excludedTaskIds', ['task-1']);
+      fixture.detectChanges();
+      component.taskSelectCtrl.setValue('  VALID task ');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([]);
+    });
+
+    it('still creates from a partial title that only matches an excluded task', () => {
+      fixture.componentRef.setInput('excludedTaskIds', ['task-1']);
+      fixture.detectChanges();
+      component.taskSelectCtrl.setValue('valid');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([{ title: 'valid', projectId: null }]);
     });
 
     it('does not create from a title that is only a project', () => {

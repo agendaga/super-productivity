@@ -47,7 +47,7 @@
         <option [value]="type">{{ typeLabelKeyOf(type) | translate }}</option>
       }
     </select>
-    @for (pickerKey of pickerKeys(); track pickerKey) {
+    @for (remountKey of pickerRemountKeys(); track remountKey) {
       <select-task
         (taskChange)="onPickerChange($event)"
         (taskCreate)="onPickerCreate($event)"

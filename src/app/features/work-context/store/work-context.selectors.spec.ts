@@ -4,12 +4,14 @@ import {
   selectActiveWorkContext,
   selectStartableTasksForActiveContext,
   selectStartableTasksWithParentsActiveContextFirst,
+  selectStartableTasksWithParentsForActiveContext,
   selectTimelineTasks,
   selectTodayTaskIds,
   selectTodayTagRepair,
   selectTrackableTasksActiveContextFirst,
   selectTrackableTasksForActiveContext,
   selectTrackableTasksWithParentsActiveContextFirst,
+  selectTrackableTasksWithParentsForActiveContext,
   selectUndoneTodayTaskIds,
 } from './work-context.selectors';
 import { WorkContext, WorkContextType } from '../work-context.model';
@@ -402,6 +404,30 @@ describe('workContext selectors', () => {
         loner,
       ]);
       expect(result.map((t) => t.id)).toEqual(['P', 'S', 'L']);
+    });
+
+    it('lists the active context with parents and their subtasks, not tasks outside it', () => {
+      const outside = {
+        id: 'X',
+        subTaskIds: [],
+        tagIds: [],
+        isDone: false,
+      } as Partial<TaskCopy> as TaskCopy;
+      const entities = { P: parent, S: child, L: loner, X: outside };
+      const context = { taskIds: ['P', 'L'] } as Partial<WorkContext> as WorkContext;
+
+      const trackable = selectTrackableTasksWithParentsForActiveContext.projector(
+        context,
+        entities,
+      );
+      expect(trackable.map((t) => t.id)).toEqual(['P', 'S', 'L']);
+
+      const startable = selectStartableTasksWithParentsForActiveContext.projector([
+        { ...parent, isDone: true },
+        child,
+        loner,
+      ]);
+      expect(startable.map((t) => t.id)).toEqual(['S', 'L']);
     });
   });
 

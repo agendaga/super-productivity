@@ -18,12 +18,14 @@ import { NavigateToTaskService } from '../../../../core-ui/navigate-to-task/navi
 import { selectAllProjects } from '../../../project/store/project.selectors';
 import { Project } from '../../../project/project.model';
 import { SelectTaskComponent } from '../../select-task/select-task.component';
-import { Task, TaskRelationshipType } from '../../task.model';
+import { Task, TaskRelationship, TaskRelationshipType } from '../../task.model';
 import { TaskService } from '../../task.service';
 import {
   getInverseTaskRelationshipType,
   getUnlinkableTaskIds,
+  isSameRelationship,
   LinkedTask,
+  withoutMirroredRelationship,
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
 import { selectLinkedTasks } from '../../store/task-relationship.selectors';
@@ -55,12 +57,6 @@ const getTypeLabelKey = (type: TaskRelationshipType): string => {
   }
 };
 
-const isSameRelationship = (
-  relationship: { targetTaskId: string; type: TaskRelationshipType },
-  targetTaskId: string,
-  type: TaskRelationshipType,
-): boolean => relationship.targetTaskId === targetTaskId && relationship.type === type;
-
 @Component({
   selector: 'task-linked-tasks',
   templateUrl: './task-linked-tasks.component.html',
@@ -79,8 +75,9 @@ export class TaskLinkedTasksComponent {
   readonly linkableTypes = LINKABLE_TYPES;
   readonly typeLabelKeyOf = getTypeLabelKey;
   readonly selectedType = signal<LinkableRelationshipType>('related to');
-  private readonly _pickerKey = signal(0);
-  readonly pickerKeys = computed(() => [this._pickerKey()]);
+  // Bumping the key re-creates the picker after a pick, which clears its typed text.
+  private readonly _pickerRemountKey = signal(0);
+  readonly pickerRemountKeys = computed(() => [this._pickerRemountKey()]);
   readonly sourceProjectId = computed(() => this.task().projectId || null);
 
   private readonly _projects = toSignal(this._store.select(selectAllProjects), {
@@ -131,8 +128,12 @@ export class TaskLinkedTasksComponent {
     const projectsById = new Map(this._projects().map((p) => [p.id, p]));
     return this._linkedTasks().map((link) => {
       const isArchived = archivedIds.has(link.task.id);
+      const linkRelationship: TaskRelationship = {
+        targetTaskId: link.task.id,
+        type: link.type,
+      };
       const isStoredHere = (task.relationships ?? []).some((r) =>
-        isSameRelationship(r, link.task.id, link.type),
+        isSameRelationship(r, linkRelationship),
       );
       return {
         key: `${link.task.id}\n${link.type}`,
@@ -167,7 +168,7 @@ export class TaskLinkedTasksComponent {
         { targetTaskId: value.id, type: this.selectedType() },
       ],
     });
-    this._pickerKey.update((key) => key + 1);
+    this._pickerRemountKey.update((key) => key + 1);
   }
 
   onPickerCreate(request: { title: string; projectId: string | null }): void {
@@ -182,7 +183,7 @@ export class TaskLinkedTasksComponent {
         },
       ],
     });
-    this._pickerKey.update((key) => key + 1);
+    this._pickerRemountKey.update((key) => key + 1);
   }
 
   openLinkedTask(row: { link: LinkedTask; isArchived: boolean }): void {
@@ -195,16 +196,21 @@ export class TaskLinkedTasksComponent {
     if (row.isStoredHere) {
       this._taskService.update(task.id, {
         relationships: (task.relationships ?? []).filter(
-          (r) => !isSameRelationship(r, link.task.id, link.type),
+          (r) =>
+            !isSameRelationship(r, {
+              targetTaskId: link.task.id,
+              type: link.type,
+            }),
         ),
       });
       return;
     }
     // Stored on the other task: remove it there, read with the inverse label.
-    const inverseType = getInverseTaskRelationshipType(link.type);
     this._taskService.update(link.task.id, {
-      relationships: (link.task.relationships ?? []).filter(
-        (r) => !isSameRelationship(r, task.id, inverseType),
+      relationships: withoutMirroredRelationship(
+        link.task.relationships,
+        task.id,
+        link.type,
       ),
     });
   }

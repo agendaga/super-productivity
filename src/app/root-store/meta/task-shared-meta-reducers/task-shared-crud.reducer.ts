@@ -28,6 +28,7 @@ import { Project } from '../../../features/project/project.model';
 import {
   DEFAULT_TASK,
   Task,
+  TaskRelationship,
   TaskState,
   TaskWithSubTasks,
 } from '../../../features/tasks/task.model';
@@ -68,6 +69,19 @@ import { plannerFeatureKey } from '../../../features/planner/store/planner.reduc
 // ACTION HANDLERS
 // =============================================================================
 
+const sanitizeRelationshipsForWrite = (
+  state: RootState,
+  source: Task,
+  stored: readonly TaskRelationship[],
+  requested: unknown,
+): TaskRelationship[] =>
+  sanitizeTaskRelationships({
+    source,
+    stored,
+    requested,
+    getTask: (id) => state[TASK_FEATURE_NAME].entities[id],
+  });
+
 const handleAddTask = (
   state: RootState,
   task: TaskWithTags,
@@ -96,12 +110,12 @@ const handleAddTask = (
     projectId: task.projectId || '',
     ...(task.relationships !== undefined
       ? {
-          relationships: sanitizeTaskRelationships({
-            source: task,
-            stored: [],
-            requested: task.relationships,
-            getTask: (id) => state[TASK_FEATURE_NAME].entities[id],
-          }),
+          relationships: sanitizeRelationshipsForWrite(
+            state,
+            task,
+            [],
+            task.relationships,
+          ),
         }
       : {}),
   };
@@ -855,12 +869,12 @@ const handleUpdateTask = (
       ...cleanedTaskUpdate,
       changes: {
         ...cleanedTaskUpdate.changes,
-        relationships: sanitizeTaskRelationships({
-          source: currentTask,
-          stored: currentTask.relationships ?? [],
-          requested: cleanedTaskUpdate.changes.relationships,
-          getTask: (id) => state[TASK_FEATURE_NAME].entities[id],
-        }),
+        relationships: sanitizeRelationshipsForWrite(
+          state,
+          currentTask,
+          currentTask.relationships ?? [],
+          cleanedTaskUpdate.changes.relationships,
+        ),
       },
     };
   }

@@ -282,6 +282,8 @@ const sortActiveContextFirst = (
   return [...forActiveContext, ...otherTasks].sort(sortDoneLast);
 };
 
+const excludeDoneTasks = (tasks: Task[]): Task[] => tasks.filter((task) => !task.isDone);
+
 export const selectTrackableTasksActiveContextFirst = createSelector(
   selectAllTasksInActiveProjects,
   selectStartableTasksForActiveContext,
@@ -291,9 +293,7 @@ export const selectTrackableTasksActiveContextFirst = createSelector(
 
 export const selectStartableTasksActiveContextFirst = createSelector(
   selectTrackableTasksActiveContextFirst,
-  (trackableTasks): Task[] => {
-    return trackableTasks.filter((task) => !task.isDone);
-  },
+  excludeDoneTasks,
 );
 
 /** Like selectTrackableTasksActiveContextFirst, but tasks with subtasks stay in the list. */
@@ -306,7 +306,39 @@ export const selectTrackableTasksWithParentsActiveContextFirst = createSelector(
 
 export const selectStartableTasksWithParentsActiveContextFirst = createSelector(
   selectTrackableTasksWithParentsActiveContextFirst,
-  (trackableTasks): Task[] => trackableTasks.filter((task) => !task.isDone),
+  excludeDoneTasks,
+);
+
+/**
+ * Active-context tasks with parents kept: each context task is followed by its
+ * subtasks. Unlike selectTrackableTasksForActiveContext, nothing is swapped out.
+ */
+export const selectTrackableTasksWithParentsForActiveContext = createSelector(
+  selectActiveWorkContext,
+  selectTaskEntities,
+  (activeContext, entities): Task[] => {
+    const tasks: Task[] = [];
+    activeContext.taskIds.forEach((id) => {
+      const task: Task | undefined = entities[id];
+      if (!task) {
+        devError('Task not found');
+        return;
+      }
+      tasks.push(task);
+      (task.subTaskIds ?? []).forEach((sid) => {
+        const subTask: Task | undefined = entities[sid];
+        if (subTask) {
+          tasks.push(subTask);
+        }
+      });
+    });
+    return tasks.sort(sortDoneLast);
+  },
+);
+
+export const selectStartableTasksWithParentsForActiveContext = createSelector(
+  selectTrackableTasksWithParentsForActiveContext,
+  excludeDoneTasks,
 );
 
 /**

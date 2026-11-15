@@ -20,8 +20,10 @@ import { Store } from '@ngrx/store';
 import {
   selectStartableTasksActiveContextFirst,
   selectStartableTasksWithParentsActiveContextFirst,
+  selectStartableTasksWithParentsForActiveContext,
   selectTrackableTasksActiveContextFirst,
   selectTrackableTasksWithParentsActiveContextFirst,
+  selectTrackableTasksWithParentsForActiveContext,
 } from '../../work-context/store/work-context.selectors';
 import { Project } from '../../project/project.model';
 import { selectAllProjects } from '../../project/store/project.selectors';
@@ -197,6 +199,13 @@ export class SelectTaskComponent {
     isIncludeParentTasks: boolean,
   ): Observable<Task[]> {
     if (isLimitToProject) {
+      if (isIncludeParentTasks) {
+        return this._store.select(
+          isIncludeDoneTasks
+            ? selectTrackableTasksWithParentsForActiveContext
+            : selectStartableTasksWithParentsForActiveContext,
+        );
+      }
       return isIncludeDoneTasks
         ? this._workContextService.trackableTasksForActiveContext$
         : this._workContextService.startableTasksForActiveContext$;
@@ -212,6 +221,17 @@ export class SelectTaskComponent {
       isIncludeDoneTasks
         ? selectTrackableTasksActiveContextFirst
         : selectStartableTasksActiveContextFirst,
+    );
+  }
+
+  // Excluded tasks are never listed, so Enter must check them separately to avoid
+  // creating a duplicate of one.
+  private _hasExcludedTaskTitled(title: string): boolean {
+    const normalized = title.toLowerCase();
+    return this._tasks().some(
+      (task) =>
+        this._excludedIds().has(task.id) &&
+        task.title?.trim().toLowerCase() === normalized,
     );
   }
 
@@ -257,7 +277,11 @@ export class SelectTaskComponent {
 
   onEnter(): void {
     const typed = this._typedText();
-    if (!typed?.title || this.filteredTasks().length > 0) {
+    if (
+      !typed?.title ||
+      this.filteredTasks().length > 0 ||
+      this._hasExcludedTaskTitled(typed.title)
+    ) {
       return;
     }
     this.taskCreate.emit({ title: typed.title, projectId: this.createProjectId() });
