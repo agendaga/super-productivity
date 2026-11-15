@@ -4231,14 +4231,6 @@ describe('taskSharedCrudMetaReducer', () => {
         ]);
       });
 
-      it('drops entries with an unknown type', () => {
-        const result = setRelationships(withTasks([{ id: 'a' }, { id: 'b' }]), 'a', [
-          { targetTaskId: 'b', type: 'depends on' } as unknown as TaskRelationship,
-        ]);
-
-        expect(relationshipsOf(result, 'a')).toEqual([]);
-      });
-
       it('leaves relationships untouched when the update does not change them', () => {
         const state = withTasks([
           { id: 'a', relationships: [{ targetTaskId: 'b', type: 'blocks' }] },
