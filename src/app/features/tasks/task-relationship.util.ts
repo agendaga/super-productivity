@@ -32,44 +32,40 @@ export const isSameRelationship = (a: TaskRelationship, b: TaskRelationship): bo
   a.targetTaskId === b.targetTaskId && a.type === b.type;
 
 /**
- * Relationships to store on the other end of a link, without the mirrored
- * entry for `taskId`. `linkType` is the label read from `taskId`, so the entry
- * sits on the other task with the inverse label.
+ * Returns the single stored representation for a relationship read from
+ * `sourceTaskId`. IDs use JavaScript's deterministic code-unit ordering.
  */
-export const withoutMirroredRelationship = (
-  relationships: readonly TaskRelationship[] | undefined,
-  taskId: string,
-  linkType: TaskRelationshipType,
-): TaskRelationship[] => {
-  const mirrored: TaskRelationship = {
-    targetTaskId: taskId,
-    type: getInverseTaskRelationshipType(linkType),
+export const getCanonicalTaskRelationship = (
+  sourceTaskId: string,
+  targetTaskId: string,
+  type: TaskRelationshipType,
+): { holderTaskId: string; relationship: TaskRelationship } => {
+  if (sourceTaskId < targetTaskId) {
+    return {
+      holderTaskId: sourceTaskId,
+      relationship: { targetTaskId, type },
+    };
+  }
+  return {
+    holderTaskId: targetTaskId,
+    relationship: {
+      targetTaskId: sourceTaskId,
+      type: getInverseTaskRelationshipType(type),
+    },
   };
-  return (relationships ?? []).filter((r) => !isSameRelationship(r, mirrored));
 };
 
 /**
- * The one validity rule for a relationship. `typesReadFromSource` lists every
- * relationship type already holding between source and candidate target, read
- * from the source's side (inverse labels applied), so a mirrored duplicate
- * and a repeated type both collide with it.
+ * The deterministic validity rule for a relationship. Duplicate checking is
+ * scoped to the requested list on its canonical holder, not mutable target
+ * state, so replay order cannot affect admission.
  */
 const isTaskRelationshipAllowed = (
   source: TaskRelationshipEndpoint,
-  target: TaskRelationshipEndpoint | undefined,
   candidate: TaskRelationship,
   typesReadFromSource: readonly TaskRelationshipType[],
 ): boolean => {
   if (candidate.targetTaskId === source.id) return false;
-  if (
-    target &&
-    (target.id === source.parentId ||
-      source.id === target.parentId ||
-      !!source.subTaskIds?.includes(target.id) ||
-      !!target.subTaskIds?.includes(source.id))
-  ) {
-    return false;
-  }
   return !typesReadFromSource.includes(candidate.type);
 };
 
@@ -83,54 +79,49 @@ export const sanitizeTaskRelationships = ({
   source,
   stored,
   requested,
-  getTask,
 }: {
   source: TaskRelationshipEndpoint;
   stored: readonly TaskRelationship[];
   requested: readonly TaskRelationship[];
-  getTask: (id: string) => Task | undefined;
 }): TaskRelationship[] => {
-  const candidates = requested;
-  const accepted = new Set<TaskRelationship>();
-  const isAlreadyAccepted = (candidate: TaskRelationship): boolean =>
-    [...accepted].some((a) => isSameRelationship(a, candidate));
+  const accepted: TaskRelationship[] = [];
 
-  candidates.forEach((candidate) => {
-    if (
-      stored.some((s) => isSameRelationship(s, candidate)) &&
-      !isAlreadyAccepted(candidate)
-    ) {
-      accepted.add(candidate);
+  requested.forEach((candidate) => {
+    if (accepted.some((relationship) => isSameRelationship(relationship, candidate))) {
+      return;
     }
-  });
 
-  candidates.forEach((candidate) => {
-    if (isAlreadyAccepted(candidate)) return;
+    const wasStored = stored.some((relationship) =>
+      isSameRelationship(relationship, candidate),
+    );
+    if (wasStored) {
+      accepted.push({ ...candidate });
+      return;
+    }
 
-    const target = getTask(candidate.targetTaskId);
+    const canonical = getCanonicalTaskRelationship(
+      source.id,
+      candidate.targetTaskId,
+      candidate.type,
+    );
+    if (canonical.holderTaskId !== source.id) return;
+
     const typesReadFromSource: TaskRelationshipType[] = [
-      ...[...accepted]
-        .filter((a) => a.targetTaskId === candidate.targetTaskId)
-        .map((a) => a.type),
-      ...(target?.relationships ?? [])
-        .filter((r) => r.targetTaskId === source.id)
-        .map((r) => getInverseTaskRelationshipType(r.type)),
+      ...accepted
+        .filter((relationship) => relationship.targetTaskId === candidate.targetTaskId)
+        .map((relationship) => relationship.type),
     ];
-    if (isTaskRelationshipAllowed(source, target, candidate, typesReadFromSource)) {
-      accepted.add(candidate);
+    if (isTaskRelationshipAllowed(source, canonical.relationship, typesReadFromSource)) {
+      accepted.push(canonical.relationship);
     }
   });
 
-  return candidates
-    .filter((candidate) => accepted.has(candidate))
-    .map(({ targetTaskId, type }) => ({ targetTaskId, type }));
+  return accepted;
 };
 
 /**
- * IDs of the `candidates` that `source` cannot take a new `type` relationship
- * to, by the same rule `sanitizeTaskRelationships` applies on save. Covers the
- * source itself, its parent and subtasks, and targets already linked with
- * `type`, whether stored on the source or as a mirrored entry on the target.
+ * IDs the picker excludes for a new `type` relationship. Parent/subtask
+ * exclusion is UX-only; replay admission must not depend on hierarchy state.
  */
 export const getUnlinkableTaskIds = ({
   source,
@@ -145,6 +136,11 @@ export const getUnlinkableTaskIds = ({
 }): string[] =>
   candidates
     .filter((target) => {
+      const isParentOrSubtask =
+        target.id === source.parentId ||
+        source.id === target.parentId ||
+        !!source.subTaskIds?.includes(target.id) ||
+        !!target.subTaskIds?.includes(source.id);
       const typesReadFromSource: TaskRelationshipType[] = [
         ...(source.relationships ?? [])
           .filter((r) => r.targetTaskId === target.id)
@@ -153,11 +149,13 @@ export const getUnlinkableTaskIds = ({
           .filter((r) => r.targetTaskId === source.id)
           .map((r) => getInverseTaskRelationshipType(r.type)),
       ];
-      return !isTaskRelationshipAllowed(
-        source,
-        target,
-        { targetTaskId: target.id, type },
-        typesReadFromSource,
+      return (
+        isParentOrSubtask ||
+        !isTaskRelationshipAllowed(
+          source,
+          { targetTaskId: target.id, type },
+          typesReadFromSource,
+        )
       );
     })
     .map((target) => target.id);
@@ -169,7 +167,7 @@ export const getUnlinkableTaskIds = ({
  */
 export const getLinkedTasks = (taskState: TaskState, taskId: string): LinkedTask[] => {
   const source = taskState.entities[taskId];
-  if (!source) return [];
+  if (!source || source.parentId) return [];
 
   const result: LinkedTask[] = [];
   const seen = new Set<string>();
@@ -183,12 +181,12 @@ export const getLinkedTasks = (taskState: TaskState, taskId: string): LinkedTask
 
   for (const relationship of source.relationships ?? []) {
     const target = taskState.entities[relationship.targetTaskId];
-    if (target) add(target, relationship.type);
+    if (target && !target.parentId) add(target, relationship.type);
   }
 
   for (const id of taskState.ids) {
     const holder = taskState.entities[id];
-    if (!holder) continue;
+    if (!holder || holder.parentId) continue;
     for (const relationship of holder.relationships ?? []) {
       if (relationship.targetTaskId === taskId) {
         add(holder, getInverseTaskRelationshipType(relationship.type));

@@ -20,11 +20,11 @@ import { SelectTaskComponent } from '../../select-task/select-task.component';
 import { Task, TaskRelationship, TaskRelationshipType } from '../../task.model';
 import { TaskService } from '../../task.service';
 import {
+  getCanonicalTaskRelationship,
   getInverseTaskRelationshipType,
   getUnlinkableTaskIds,
   isSameRelationship,
   LinkedTask,
-  withoutMirroredRelationship,
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
 import { selectLinkedTasks } from '../../store/task-relationship.selectors';
@@ -139,27 +139,44 @@ export class TaskLinkedTasksComponent {
     // A typed title that matches nothing is not a link yet.
     if (typeof value === 'string') return;
 
-    const task = this.task();
-    this._taskService.update(task.id, {
-      relationships: [
-        ...(task.relationships ?? []),
-        { targetTaskId: value.id, type: this.selectedType() },
-      ],
-    });
+    const canonical = getCanonicalTaskRelationship(
+      this.task().id,
+      value.id,
+      this.selectedType(),
+    );
+    const holder = this._allTasks().find(
+      (candidate) => candidate.id === canonical.holderTaskId,
+    );
+    if (!holder) {
+      throw new Error(`Task relationship holder not found: ${canonical.holderTaskId}`);
+    }
+    if (
+      !(holder.relationships ?? []).some((relationship) =>
+        isSameRelationship(relationship, canonical.relationship),
+      )
+    ) {
+      this._taskService.update(holder.id, {
+        relationships: [...(holder.relationships ?? []), canonical.relationship],
+      });
+    }
     this._pickerRemountKey.update((key) => key + 1);
   }
 
   onPickerCreate(request: { title: string; projectId: string | null }): void {
     const task = this.task();
-    // One addTask op: the new task stores the link with the inverse label.
-    this._taskService.add(request.title, false, {
+    const newTaskId = this._taskService.add(request.title, false, {
       ...(request.projectId ? { projectId: request.projectId } : {}),
-      relationships: [
-        {
-          targetTaskId: task.id,
-          type: getInverseTaskRelationshipType(this.selectedType()),
-        },
-      ],
+    });
+    // The relationship owner cannot be known until add() assigns the new ID.
+    const canonical = getCanonicalTaskRelationship(
+      task.id,
+      newTaskId,
+      this.selectedType(),
+    );
+    const holderId = canonical.holderTaskId;
+    const holderRelationships = holderId === newTaskId ? [] : (task.relationships ?? []);
+    this._taskService.update(holderId, {
+      relationships: [...holderRelationships, canonical.relationship],
     });
     this._pickerRemountKey.update((key) => key + 1);
   }
@@ -171,25 +188,25 @@ export class TaskLinkedTasksComponent {
   removeLink(row: { link: LinkedTask; isStoredHere: boolean }): void {
     const task = this.task();
     const { link } = row;
-    if (row.isStoredHere) {
-      this._taskService.update(task.id, {
-        relationships: (task.relationships ?? []).filter(
-          (r) =>
-            !isSameRelationship(r, {
-              targetTaskId: link.task.id,
-              type: link.type,
-            }),
-        ),
-      });
-      return;
+    const canonical = getCanonicalTaskRelationship(task.id, link.task.id, link.type);
+    const holder = canonical.holderTaskId === task.id ? task : link.task;
+    const other = holder.id === task.id ? link.task : task;
+    const holderRelationships = (holder.relationships ?? []).filter(
+      (relationship) => !isSameRelationship(relationship, canonical.relationship),
+    );
+    if (holderRelationships.length !== (holder.relationships ?? []).length) {
+      this._taskService.update(holder.id, { relationships: holderRelationships });
     }
-    // Stored on the other task: remove it there, read with the inverse label.
-    this._taskService.update(link.task.id, {
-      relationships: withoutMirroredRelationship(
-        link.task.relationships,
-        task.id,
-        link.type,
-      ),
-    });
+
+    const mirrored = {
+      targetTaskId: holder.id,
+      type: getInverseTaskRelationshipType(canonical.relationship.type),
+    };
+    const otherRelationships = (other.relationships ?? []).filter(
+      (relationship) => !isSameRelationship(relationship, mirrored),
+    );
+    if (otherRelationships.length !== (other.relationships ?? []).length) {
+      this._taskService.update(other.id, { relationships: otherRelationships });
+    }
   }
 }

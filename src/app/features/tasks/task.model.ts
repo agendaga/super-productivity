@@ -84,7 +84,7 @@ export type TaskPriority = 1 | 2 | 3;
 /**
  * Relationship type as stored on one end: `blocks`/`causes`/`related to` are the
  * forward readings, `blocked by`/`caused by` the inverse readings used when the
- * relationship is stored on the target's side (see GLOSSARY.md).
+ * same relationship is read from the other endpoint (see GLOSSARY.md).
  */
 export const TASK_RELATIONSHIP_TYPES = [
   'related to',
@@ -189,8 +189,9 @@ export interface TaskCopy
   wontDoOn?: number;
   parentId?: string;
   /**
-   * Relationships stored on this task. Each fact lives on one end only; readers
-   * merge both ends (see task-relationship.util.ts). Missing means none.
+   * Relationships stored on this task. Each fact lives on the endpoint with
+   * the lower task ID; readers derive the inverse for the other endpoint (see
+   * task-relationship.util.ts). Missing means none.
    * Clients predating the field ignore it.
    */
   relationships?: TaskRelationship[];
