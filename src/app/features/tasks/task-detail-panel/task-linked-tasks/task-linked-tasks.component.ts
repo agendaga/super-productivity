@@ -18,11 +18,12 @@ import { NavigateToTaskService } from '../../../../core-ui/navigate-to-task/navi
 import { selectAllProjects } from '../../../project/store/project.selectors';
 import { Project } from '../../../project/project.model';
 import { SelectTaskComponent } from '../../select-task/select-task.component';
-import { Task, TaskRelationshipType } from '../../task.model';
+import { Task, TaskRelationship, TaskRelationshipType } from '../../task.model';
 import { TaskService } from '../../task.service';
 import {
   getInverseTaskRelationshipType,
   getUnlinkableTaskIds,
+  isSameRelationship,
   LinkedTask,
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
@@ -54,12 +55,6 @@ const getTypeLabelKey = (type: TaskRelationshipType): string => {
     }
   }
 };
-
-const isSameRelationship = (
-  relationship: { targetTaskId: string; type: TaskRelationshipType },
-  targetTaskId: string,
-  type: TaskRelationshipType,
-): boolean => relationship.targetTaskId === targetTaskId && relationship.type === type;
 
 @Component({
   selector: 'task-linked-tasks',
@@ -131,8 +126,12 @@ export class TaskLinkedTasksComponent {
     const projectsById = new Map(this._projects().map((p) => [p.id, p]));
     return this._linkedTasks().map((link) => {
       const isArchived = archivedIds.has(link.task.id);
+      const linkRelationship: TaskRelationship = {
+        targetTaskId: link.task.id,
+        type: link.type,
+      };
       const isStoredHere = (task.relationships ?? []).some((r) =>
-        isSameRelationship(r, link.task.id, link.type),
+        isSameRelationship(r, linkRelationship),
       );
       return {
         key: `${link.task.id}\n${link.type}`,
@@ -195,7 +194,11 @@ export class TaskLinkedTasksComponent {
     if (row.isStoredHere) {
       this._taskService.update(task.id, {
         relationships: (task.relationships ?? []).filter(
-          (r) => !isSameRelationship(r, link.task.id, link.type),
+          (r) =>
+            !isSameRelationship(r, {
+              targetTaskId: link.task.id,
+              type: link.type,
+            }),
         ),
       });
       return;
@@ -204,7 +207,7 @@ export class TaskLinkedTasksComponent {
     const inverseType = getInverseTaskRelationshipType(link.type);
     this._taskService.update(link.task.id, {
       relationships: (link.task.relationships ?? []).filter(
-        (r) => !isSameRelationship(r, task.id, inverseType),
+        (r) => !isSameRelationship(r, { targetTaskId: task.id, type: inverseType }),
       ),
     });
   }

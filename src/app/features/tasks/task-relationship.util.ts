@@ -46,7 +46,7 @@ const isTaskRelationship = (value: unknown): value is TaskRelationship => {
   );
 };
 
-const isSameRelationship = (a: TaskRelationship, b: TaskRelationship): boolean =>
+export const isSameRelationship = (a: TaskRelationship, b: TaskRelationship): boolean =>
   a.targetTaskId === b.targetTaskId && a.type === b.type;
 
 /**
