@@ -1,4 +1,3 @@
-import { getLinkedTasks } from '../task-relationship.util';
 import { TaskState, Task, TaskRelationship } from '../task.model';
 import { createMockTask } from '../../../root-store/meta/task-shared-meta-reducers/test-utils';
 import { selectLinkedTasks } from './task-relationship.selectors';
@@ -83,14 +82,12 @@ describe('selectLinkedTasks', () => {
     expect(result.map((l) => l.task.id)).toEqual(['b']);
   });
 
-  it('keeps archived targets when the caller supplies the archive', () => {
-    const archived = task('old', undefined, { isDone: true });
-    const state = stateOf([task('a', [rel('old', 'blocks')])]);
+  it('omits archived-style targets without changing the stored relationship', () => {
+    const source = task('a', [rel('old', 'blocks')]);
+    const state = stateOf([source]);
 
-    expect(
-      getLinkedTasks(state, 'a', [archived]).map((l) => [l.task.id, l.type]),
-    ).toEqual([['old', 'blocks']]);
-    expect(getLinkedTasks(state, 'a').length).toBe(0);
+    expect(selectLinkedTasks.projector(state, { taskId: 'a' })).toEqual([]);
+    expect(source.relationships).toEqual([rel('old', 'blocks')]);
   });
 
   it('returns nothing for a task that is not in the state', () => {
