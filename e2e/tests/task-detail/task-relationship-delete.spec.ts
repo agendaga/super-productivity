@@ -71,9 +71,12 @@ test.describe('Task relationships: deleting a linked task', () => {
     const target = await getStoredTaskByTitle(page, 'Link target');
     expect(target).not.toBeNull();
     const source = await getStoredTaskByTitle(page, 'Link source');
-    expect(source?.relationships).toEqual([
-      { targetTaskId: target!.id, type: 'related to' },
-    ]);
+    expect(source).not.toBeNull();
+    const holder = source!.id < target!.id ? source! : target!;
+    const other = holder.id === source!.id ? target! : source!;
+    const canonicalRelationship = [{ targetTaskId: other.id, type: 'related to' }];
+    expect(holder.relationships).toEqual(canonicalRelationship);
+    expect(other.relationships).toEqual([]);
 
     await taskPage.getTaskByText('Link target').click({ button: 'right' });
     await page.locator('.mat-mdc-menu-content button.color-warn').click();
@@ -89,9 +92,9 @@ test.describe('Task relationships: deleting a linked task', () => {
     await expect(linkedTasks.locator('.linked-tasks__empty')).toBeVisible();
 
     const sourceAfterDelete = await getStoredTaskByTitle(page, 'Link source');
-    expect(sourceAfterDelete?.relationships).toEqual([
-      { targetTaskId: target!.id, type: 'related to' },
-    ]);
+    expect(sourceAfterDelete?.relationships).toEqual(
+      holder.id === source!.id ? canonicalRelationship : [],
+    );
 
     const undoButton = page.locator(
       'snack-custom button.action, .mat-mdc-snack-bar-container button',
@@ -104,8 +107,20 @@ test.describe('Task relationships: deleting a linked task', () => {
       linkedTasks.locator('.linked-tasks__item').filter({ hasText: 'Link target' }),
     ).toBeVisible();
     const sourceAfterRestore = await getStoredTaskByTitle(page, 'Link source');
-    expect(sourceAfterRestore?.relationships).toEqual([
-      { targetTaskId: target!.id, type: 'related to' },
+    const targetAfterRestore = await getStoredTaskByTitle(page, 'Link target');
+    expect(sourceAfterRestore).not.toBeNull();
+    expect(targetAfterRestore).not.toBeNull();
+    const restoredHolder =
+      sourceAfterRestore!.id < targetAfterRestore!.id
+        ? sourceAfterRestore!
+        : targetAfterRestore!;
+    const restoredOther =
+      restoredHolder.id === sourceAfterRestore!.id
+        ? targetAfterRestore!
+        : sourceAfterRestore!;
+    expect(restoredHolder.relationships).toEqual([
+      { targetTaskId: restoredOther.id, type: 'related to' },
     ]);
+    expect(restoredOther.relationships).toEqual([]);
   });
 });

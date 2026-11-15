@@ -151,6 +151,23 @@ describe('TaskLinkedTasksComponent', () => {
     });
   });
 
+  it('stores a relationship created from the higher-ID task on the lower-ID task with its inverse label', async () => {
+    await setup(
+      [
+        createMockTask({ id: 'a', title: 'Lower' }),
+        createMockTask({ id: 'z', title: 'Higher' }),
+      ],
+      'z',
+    );
+
+    chooseType('blocks');
+    picker().taskChange.emit(createMockTask({ id: 'a', title: 'Lower' }));
+
+    expect(mockTaskService.update).toHaveBeenCalledOnceWith('a', {
+      relationships: [rel('z', 'blocked by')],
+    });
+  });
+
   it('keeps keys pressed on the type select from reaching the surrounding panel', async () => {
     await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
     const onKeydown = jasmine.createSpy('onKeydown');
@@ -256,15 +273,35 @@ describe('TaskLinkedTasksComponent', () => {
   it('removes a relationship stored on the other task from this end', async () => {
     await setup(
       [
-        createMockTask({ id: 'a', title: 'Source' }),
-        createMockTask({ id: 'b', title: 'Target', relationships: [rel('a', 'blocks')] }),
+        createMockTask({ id: 'a', title: 'Lower', relationships: [rel('z', 'blocks')] }),
+        createMockTask({ id: 'z', title: 'Higher' }),
       ],
-      'a',
+      'z',
     );
 
     (fixture.nativeElement.querySelector('.linked-tasks__remove') as HTMLElement).click();
 
-    expect(mockTaskService.update).toHaveBeenCalledOnceWith('b', { relationships: [] });
+    expect(mockTaskService.update).toHaveBeenCalledOnceWith('a', { relationships: [] });
+  });
+
+  it('removes a mirrored noncanonical record when cleaning up an existing duplicate', async () => {
+    await setup(
+      [
+        createMockTask({ id: 'a', title: 'Lower', relationships: [rel('z', 'blocks')] }),
+        createMockTask({
+          id: 'z',
+          title: 'Higher',
+          relationships: [rel('a', 'blocked by')],
+        }),
+      ],
+      'z',
+    );
+
+    (fixture.nativeElement.querySelector('.linked-tasks__remove') as HTMLElement).click();
+
+    expect(mockTaskService.update).toHaveBeenCalledTimes(2);
+    expect(mockTaskService.update).toHaveBeenCalledWith('a', { relationships: [] });
+    expect(mockTaskService.update).toHaveBeenCalledWith('z', { relationships: [] });
   });
 
   it('omits archived-style targets and leaves their stored relationship untouched', async () => {
@@ -281,26 +318,31 @@ describe('TaskLinkedTasksComponent', () => {
   });
 
   describe('creating a task from the picker', () => {
-    it('creates the new task with the inverse relationship in one add call', async () => {
+    it('creates a linked task and stores the relationship on the lower-ID task', async () => {
       await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
+      mockTaskService.add.and.returnValue('z');
 
       chooseType('blocks');
       picker().taskCreate.emit({ title: 'Blocker', projectId: 'p1' });
 
       expect(mockTaskService.add).toHaveBeenCalledOnceWith('Blocker', false, {
         projectId: 'p1',
-        relationships: [rel('a', 'blocked by')],
       });
-      expect(mockTaskService.update).not.toHaveBeenCalled();
+      expect(mockTaskService.update).toHaveBeenCalledOnceWith('a', {
+        relationships: [rel('z', 'blocks')],
+      });
     });
 
-    it('stores a related-to link with the same label at both ends', async () => {
+    it('stores the inverse label when the new lower-ID task holds the relationship', async () => {
       await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
+      mockTaskService.add.and.returnValue('0');
 
+      chooseType('blocks');
       picker().taskCreate.emit({ title: 'Peer', projectId: null });
 
-      expect(mockTaskService.add).toHaveBeenCalledOnceWith('Peer', false, {
-        relationships: [rel('a', 'related to')],
+      expect(mockTaskService.add).toHaveBeenCalledOnceWith('Peer', false, {});
+      expect(mockTaskService.update).toHaveBeenCalledOnceWith('0', {
+        relationships: [rel('a', 'blocked by')],
       });
     });
 

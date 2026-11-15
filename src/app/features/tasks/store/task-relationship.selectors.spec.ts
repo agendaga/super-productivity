@@ -39,6 +39,17 @@ describe('selectLinkedTasks', () => {
     expect(result.map((l) => [l.task.id, l.type])).toEqual([['b', 'blocked by']]);
   });
 
+  it('reads a canonical relationship from either endpoint with inverse labels', () => {
+    const state = stateOf([task('a', [rel('z', 'blocked by')]), task('z')]);
+
+    expect(
+      selectLinkedTasks.projector(state, { taskId: 'a' }).map((l) => [l.task.id, l.type]),
+    ).toEqual([['z', 'blocked by']]);
+    expect(
+      selectLinkedTasks.projector(state, { taskId: 'z' }).map((l) => [l.task.id, l.type]),
+    ).toEqual([['a', 'blocks']]);
+  });
+
   it('merges relationships stored on both ends, each read from the given task', () => {
     const state = stateOf([
       task('a', [rel('b', 'causes')]),
@@ -88,6 +99,37 @@ describe('selectLinkedTasks', () => {
 
     expect(selectLinkedTasks.projector(state, { taskId: 'a' })).toEqual([]);
     expect(source.relationships).toEqual([rel('old', 'blocks')]);
+  });
+
+  it('hides relationships in both panels while either endpoint is a subtask', () => {
+    const state = stateOf([
+      task('a', [rel('b', 'blocks')]),
+      task('b', undefined, { parentId: 'parent' }),
+      task('parent', undefined, { subTaskIds: ['b'] }),
+    ]);
+
+    expect(selectLinkedTasks.projector(state, { taskId: 'a' })).toEqual([]);
+    expect(selectLinkedTasks.projector(state, { taskId: 'b' })).toEqual([]);
+    expect(state.entities.a?.relationships).toEqual([rel('b', 'blocks')]);
+  });
+
+  it('shows the relationship again after the subtask is promoted', () => {
+    const promotedState = stateOf([
+      task('a', [rel('b', 'blocks')]),
+      task('b'),
+      task('parent', undefined, { subTaskIds: [] }),
+    ]);
+
+    expect(
+      selectLinkedTasks
+        .projector(promotedState, { taskId: 'a' })
+        .map((l) => [l.task.id, l.type]),
+    ).toEqual([['b', 'blocks']]);
+    expect(
+      selectLinkedTasks
+        .projector(promotedState, { taskId: 'b' })
+        .map((l) => [l.task.id, l.type]),
+    ).toEqual([['a', 'blocked by']]);
   });
 
   it('returns nothing for a task that is not in the state', () => {
