@@ -289,4 +289,72 @@ describe('SelectTaskComponent', () => {
       expect(component.createProjectId()).toBe('project-2');
     });
   });
+
+  describe('Enter to create', () => {
+    let created: { title: string; projectId: string | null }[];
+
+    const pressEnter = (): void => {
+      const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+      fixture.detectChanges();
+    };
+
+    beforeEach(() => {
+      created = [];
+      component.taskCreate.subscribe((request) => created.push(request));
+      projectsSubject.next([
+        { id: 'project-1', title: 'Work' } as Project,
+        { id: 'project-2', title: 'Home' } as Project,
+      ]);
+    });
+
+    it('emits the typed title and the default project when nothing matches', () => {
+      fixture.componentRef.setInput('defaultProjectId', 'project-1');
+      fixture.detectChanges();
+      component.taskSelectCtrl.setValue('Buy milk');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([{ title: 'Buy milk', projectId: 'project-1' }]);
+    });
+
+    it('uses +project in the title over the default project and drops it from the title', () => {
+      fixture.componentRef.setInput('defaultProjectId', 'project-1');
+      fixture.detectChanges();
+      component.taskSelectCtrl.setValue('Buy Milk +home');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([{ title: 'Buy Milk', projectId: 'project-2' }]);
+    });
+
+    it('emits no project when the default project is unset', () => {
+      component.taskSelectCtrl.setValue('Buy milk');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([{ title: 'Buy milk', projectId: null }]);
+    });
+
+    it('does not create when a listed task matches the title', () => {
+      component.taskSelectCtrl.setValue('valid');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([]);
+    });
+
+    it('does not create from a title that is only a project', () => {
+      component.taskSelectCtrl.setValue('+home');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([]);
+    });
+  });
 });

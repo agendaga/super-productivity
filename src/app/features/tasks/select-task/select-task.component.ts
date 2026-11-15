@@ -74,6 +74,8 @@ export class SelectTaskComponent {
   T: typeof T = T;
   readonly taskSelectCtrl: UntypedFormControl = new UntypedFormControl('');
   readonly taskChange = output<Task | string>();
+  /** Emitted on Enter when the typed title matches no listed task. */
+  readonly taskCreate = output<{ title: string; projectId: string | null }>();
   readonly isLimitToProject = input<boolean>(false);
   readonly isIncludeDoneTasks = input<boolean>(false);
   readonly isShowSuggestionsWithoutSearch = input<boolean>(false);
@@ -136,8 +138,10 @@ export class SelectTaskComponent {
           this._projects().filter((project) => !project.isArchived),
         )
       : {};
+    const title = (projectParseResult.title ?? taskOrTitle).trim();
     return {
-      searchTerm: (projectParseResult.title ?? taskOrTitle).trim().toLowerCase(),
+      title,
+      searchTerm: title.toLowerCase(),
       projectId: projectParseResult.projectId,
     };
   });
@@ -249,6 +253,14 @@ export class SelectTaskComponent {
       }
       this._isPanelOpen.set(false);
     }
+  }
+
+  onEnter(): void {
+    const typed = this._typedText();
+    if (!typed?.title || this.filteredTasks().length > 0) {
+      return;
+    }
+    this.taskCreate.emit({ title: typed.title, projectId: this.createProjectId() });
   }
 
   onPanelClosed(): void {

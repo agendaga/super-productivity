@@ -81,6 +81,7 @@ export class TaskLinkedTasksComponent {
   readonly selectedType = signal<LinkableRelationshipType>('related to');
   private readonly _pickerKey = signal(0);
   readonly pickerKeys = computed(() => [this._pickerKey()]);
+  readonly sourceProjectId = computed(() => this.task().projectId || null);
 
   private readonly _projects = toSignal(this._store.select(selectAllProjects), {
     initialValue: [] as Project[],
@@ -164,6 +165,21 @@ export class TaskLinkedTasksComponent {
       relationships: [
         ...(task.relationships ?? []),
         { targetTaskId: value.id, type: this.selectedType() },
+      ],
+    });
+    this._pickerKey.update((key) => key + 1);
+  }
+
+  onPickerCreate(request: { title: string; projectId: string | null }): void {
+    const task = this.task();
+    // One addTask op: the new task stores the link with the inverse label.
+    this._taskService.add(request.title, false, {
+      ...(request.projectId ? { projectId: request.projectId } : {}),
+      relationships: [
+        {
+          targetTaskId: task.id,
+          type: getInverseTaskRelationshipType(this.selectedType()),
+        },
       ],
     });
     this._pickerKey.update((key) => key + 1);
