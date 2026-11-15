@@ -4311,6 +4311,34 @@ describe('taskSharedCrudMetaReducer', () => {
 
         expect(relationshipsOf(result, 'new')).toEqual([]);
       });
+
+      it('lists a task created with a relationship in its project, in one action', () => {
+        const state = withTasks([{ id: 'a', projectId: 'project1' }]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.addTask({
+            task: createMockTask({
+              id: 'new',
+              projectId: 'project1',
+              tagIds: [],
+              relationships: [{ targetTaskId: 'a', type: 'blocked by' }],
+            }),
+            workContextId: 'project1',
+            workContextType: WorkContextType.PROJECT,
+            isAddToBottom: false,
+            isAddToBacklog: false,
+          }),
+        ) as RootState;
+
+        expect(result[PROJECT_FEATURE_NAME].entities['project1']?.taskIds).toContain(
+          'new',
+        );
+        expect(relationshipsOf(result, 'new')).toEqual([
+          { targetTaskId: 'a', type: 'blocked by' },
+        ]);
+        expect(relationshipsOf(result, 'a')).toBeUndefined();
+      });
     });
 
     describe('deleteTask and deleteTasks', () => {

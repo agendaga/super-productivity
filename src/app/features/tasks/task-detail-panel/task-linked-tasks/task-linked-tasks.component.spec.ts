@@ -21,8 +21,10 @@ import { T } from '../../../../t.const';
 })
 class SelectTaskStubComponent {
   readonly taskChange = output<Task | string>();
+  readonly taskCreate = output<{ title: string; projectId: string | null }>();
   readonly isIncludeParentTasks = input(false);
   readonly excludedTaskIds = input<readonly string[]>([]);
+  readonly defaultProjectId = input<string | null>(null);
 }
 
 const rel = (targetTaskId: string, type: TaskRelationship['type']): TaskRelationship => ({
@@ -59,7 +61,11 @@ describe('TaskLinkedTasksComponent', () => {
             : of(selectLinkedTasks.projector(taskState, props ?? { taskId: sourceId })),
       dispatch: () => undefined,
     };
-    mockTaskService = jasmine.createSpyObj('TaskService', ['update', 'getArchivedTasks']);
+    mockTaskService = jasmine.createSpyObj('TaskService', [
+      'update',
+      'add',
+      'getArchivedTasks',
+    ]);
     mockTaskService.getArchivedTasks.and.returnValue(Promise.resolve(archivedTasks));
     mockNavigate = jasmine.createSpyObj('NavigateToTaskService', ['navigate']);
 
@@ -287,5 +293,36 @@ describe('TaskLinkedTasksComponent', () => {
 
     expect(mockNavigate.navigate).toHaveBeenCalledWith('b', false);
     expect(mockNavigate.navigate).toHaveBeenCalledWith('c', true);
+  });
+
+  describe('creating a task from the picker', () => {
+    it('creates the new task with the inverse relationship in one add call', async () => {
+      await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
+
+      chooseType('blocks');
+      picker().taskCreate.emit({ title: 'Blocker', projectId: 'p1' });
+
+      expect(mockTaskService.add).toHaveBeenCalledOnceWith('Blocker', false, {
+        projectId: 'p1',
+        relationships: [rel('a', 'blocked by')],
+      });
+      expect(mockTaskService.update).not.toHaveBeenCalled();
+    });
+
+    it('stores a related-to link with the same label at both ends', async () => {
+      await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
+
+      picker().taskCreate.emit({ title: 'Peer', projectId: null });
+
+      expect(mockTaskService.add).toHaveBeenCalledOnceWith('Peer', false, {
+        relationships: [rel('a', 'related to')],
+      });
+    });
+
+    it('offers the source task project as the picker default project', async () => {
+      await setup([createMockTask({ id: 'a', title: 'Source', projectId: 'work' })], 'a');
+
+      expect(picker().defaultProjectId()).toBe('work');
+    });
   });
 });

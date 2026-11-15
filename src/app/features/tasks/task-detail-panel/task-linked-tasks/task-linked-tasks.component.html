@@ -50,8 +50,10 @@
     @for (pickerKey of pickerKeys(); track pickerKey) {
       <select-task
         (taskChange)="onPickerChange($event)"
+        (taskCreate)="onPickerCreate($event)"
         [isIncludeParentTasks]="true"
         [excludedTaskIds]="excludedTaskIds()"
+        [defaultProjectId]="sourceProjectId()"
       ></select-task>
     }
   </div>
