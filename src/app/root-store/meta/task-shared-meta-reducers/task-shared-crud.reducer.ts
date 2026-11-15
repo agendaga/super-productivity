@@ -67,7 +67,6 @@ import { plannerFeatureKey } from '../../../features/planner/store/planner.reduc
 // =============================================================================
 
 const sanitizeRelationshipsForWrite = (
-  state: RootState,
   source: Task,
   stored: readonly TaskRelationship[],
   requested: readonly TaskRelationship[],
@@ -76,7 +75,6 @@ const sanitizeRelationshipsForWrite = (
     source,
     stored,
     requested,
-    getTask: (id) => state[TASK_FEATURE_NAME].entities[id],
   });
 
 const handleAddTask = (
@@ -107,12 +105,7 @@ const handleAddTask = (
     projectId: task.projectId || '',
     ...(task.relationships !== undefined
       ? {
-          relationships: sanitizeRelationshipsForWrite(
-            state,
-            task,
-            [],
-            task.relationships,
-          ),
+          relationships: sanitizeRelationshipsForWrite(task, [], task.relationships),
         }
       : {}),
   };
@@ -858,7 +851,6 @@ const handleUpdateTask = (
       changes: {
         ...cleanedTaskUpdate.changes,
         relationships: sanitizeRelationshipsForWrite(
-          state,
           currentTask,
           currentTask.relationships ?? [],
           cleanedTaskUpdate.changes.relationships,

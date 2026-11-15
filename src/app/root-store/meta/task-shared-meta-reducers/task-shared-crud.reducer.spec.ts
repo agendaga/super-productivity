@@ -4165,27 +4165,51 @@ describe('taskSharedCrudMetaReducer', () => {
         expect(relationshipsOf(result, 'a')).toEqual([]);
       });
 
-      it('rejects a link to the task parent or to one of its subtasks', () => {
+      it('accepts a relationship when either endpoint is currently a subtask', () => {
         const state = withTasks([
-          { id: 'p', subTaskIds: ['c'] },
-          { id: 'c', parentId: 'p' },
+          { id: 'a', parentId: 'p' },
+          { id: 'b', parentId: 'p' },
+          { id: 'p', subTaskIds: ['a', 'b'] },
+          { id: 'z' },
         ]);
 
         expect(
           relationshipsOf(
-            setRelationships(state, 'c', [{ targetTaskId: 'p', type: 'blocks' }]),
-            'c',
+            setRelationships(state, 'a', [{ targetTaskId: 'z', type: 'blocks' }]),
+            'a',
           ),
-        ).toEqual([]);
+        ).toEqual([{ targetTaskId: 'z', type: 'blocks' }]);
+      });
+
+      it('keeps relationship creation stable on either side of subtask conversion', () => {
+        const state = withTasks([{ id: 'a' }, { id: 'b' }, { id: 'p' }]);
+        const relationship = [{ targetTaskId: 'b', type: 'blocks' }] as const;
+        const convert = TaskSharedActions.convertToSubTask({
+          taskId: 'b',
+          targetParentId: 'p',
+          afterTaskId: null,
+        });
+
+        const createdFirst = metaReducer(
+          setRelationships(state, 'a', [...relationship]),
+          convert,
+        ) as RootState;
+        const convertedFirst = setRelationships(
+          metaReducer(state, convert) as RootState,
+          'a',
+          [...relationship],
+        );
+
+        expect(relationshipsOf(createdFirst, 'a')).toEqual([...relationship]);
+        expect(relationshipsOf(convertedFirst, 'a')).toEqual([...relationship]);
         expect(
-          relationshipsOf(
-            setRelationships(state, 'p', [{ targetTaskId: 'c', type: 'related to' }]),
-            'p',
-          ),
+          selectLinkedTasks.projector(convertedFirst[TASK_FEATURE_NAME], {
+            taskId: 'a',
+          }),
         ).toEqual([]);
       });
 
-      it('rejects the mirrored form of a relationship stored on the target', () => {
+      it('keeps canonical updates independent of mirrored records on the target', () => {
         const state = withTasks([
           { id: 'a' },
           { id: 'b', relationships: [{ targetTaskId: 'a', type: 'blocked by' }] },
@@ -4195,10 +4219,12 @@ describe('taskSharedCrudMetaReducer', () => {
           { targetTaskId: 'b', type: 'blocks' },
         ]);
 
-        expect(relationshipsOf(result, 'a')).toEqual([]);
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
       });
 
-      it('rejects related to in either direction', () => {
+      it('does not reject a canonical related-to update based on target state', () => {
         const state = withTasks([
           { id: 'a' },
           { id: 'b', relationships: [{ targetTaskId: 'a', type: 'related to' }] },
@@ -4208,7 +4234,9 @@ describe('taskSharedCrudMetaReducer', () => {
           { targetTaskId: 'b', type: 'related to' },
         ]);
 
-        expect(relationshipsOf(result, 'a')).toEqual([]);
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'related to' },
+        ]);
       });
 
       it('keeps only one of two identical entries in the same update', () => {
@@ -4271,15 +4299,15 @@ describe('taskSharedCrudMetaReducer', () => {
           isAddToBacklog: false,
         });
 
-      it('stores a relationship sent with a new task (create and link)', () => {
+      it('stores an outgoing relationship when the new task is the lower-ID holder', () => {
         const state = withTasks([{ id: 'a' }]);
 
         const result = metaReducer(
           state,
-          addWith('new', [{ targetTaskId: 'a', type: 'blocked by' }]),
+          addWith('0-new', [{ targetTaskId: 'a', type: 'blocked by' }]),
         ) as RootState;
 
-        expect(relationshipsOf(result, 'new')).toEqual([
+        expect(relationshipsOf(result, '0-new')).toEqual([
           { targetTaskId: 'a', type: 'blocked by' },
         ]);
         expect(relationshipsOf(result, 'a')).toBeUndefined();
@@ -4294,15 +4322,17 @@ describe('taskSharedCrudMetaReducer', () => {
         expect(relationshipsOf(result, 'new')).toEqual([]);
       });
 
-      it('rejects a new subtask linked to its own parent', () => {
-        const state = withTasks([{ id: 'p', subTaskIds: [] }]);
+      it('does not reject new relationships based on current subtask state', () => {
+        const state = withTasks([{ id: 'p', subTaskIds: [] }, { id: 'z' }]);
 
         const result = metaReducer(
           state,
-          addWith('new', [{ targetTaskId: 'p', type: 'blocks' }], 'p'),
+          addWith('a-new', [{ targetTaskId: 'z', type: 'blocks' }], 'p'),
         ) as RootState;
 
-        expect(relationshipsOf(result, 'new')).toEqual([]);
+        expect(relationshipsOf(result, 'a-new')).toEqual([
+          { targetTaskId: 'z', type: 'blocks' },
+        ]);
       });
 
       it('lists a task created with a relationship in its project, in one action', () => {
@@ -4312,7 +4342,7 @@ describe('taskSharedCrudMetaReducer', () => {
           state,
           TaskSharedActions.addTask({
             task: createMockTask({
-              id: 'new',
+              id: '0-new',
               projectId: 'project1',
               tagIds: [],
               relationships: [{ targetTaskId: 'a', type: 'blocked by' }],
@@ -4325,9 +4355,9 @@ describe('taskSharedCrudMetaReducer', () => {
         ) as RootState;
 
         expect(result[PROJECT_FEATURE_NAME].entities['project1']?.taskIds).toContain(
-          'new',
+          '0-new',
         );
-        expect(relationshipsOf(result, 'new')).toEqual([
+        expect(relationshipsOf(result, '0-new')).toEqual([
           { targetTaskId: 'a', type: 'blocked by' },
         ]);
         expect(relationshipsOf(result, 'a')).toBeUndefined();
