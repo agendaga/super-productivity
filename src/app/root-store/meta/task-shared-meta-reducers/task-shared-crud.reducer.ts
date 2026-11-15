@@ -39,10 +39,7 @@ import { appStateFeatureKey } from '../../app-state/app-state.reducer';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { moveItemAfterAnchor } from '../../../features/work-context/store/work-context-meta.helper';
 import { canApplyConvertToSubTask } from '../../../features/tasks/util/can-convert-task-to-sub-task';
-import {
-  removeRelationshipsToTasks,
-  sanitizeTaskRelationships,
-} from '../../../features/tasks/task-relationship.util';
+import { sanitizeTaskRelationships } from '../../../features/tasks/task-relationship.util';
 import {
   ActionHandlerMap,
   addTaskToListAtAnchor,
@@ -463,14 +460,6 @@ const handleDeleteTask = (state: RootState, task: TaskWithSubTasks): RootState =
     ),
   };
 
-  updatedState = {
-    ...updatedState,
-    [TASK_FEATURE_NAME]: removeRelationshipsToTasks(updatedState[TASK_FEATURE_NAME], [
-      task.id,
-      ...(task.subTaskIds || []),
-    ]),
-  };
-
   // Remove the task from every project list, found in CURRENT STATE like the
   // tags below, not from the payload's projectId: the receiving client can
   // hold the task in another project. A bulk replay skips an LWW row of a
@@ -578,7 +567,6 @@ const handleDeleteTasks = (
     stateCalendarAutoImportDismissals,
     true,
   );
-  newTaskState = removeRelationshipsToTasks(newTaskState, allIds);
   updatedState = {
     ...updatedState,
     [TASK_FEATURE_NAME]: newTaskState,

@@ -10,6 +10,7 @@ import {
   TaskRelationship,
   TaskWithSubTasks,
 } from '../../../features/tasks/task.model';
+import { selectLinkedTasks } from '../../../features/tasks/store/task-relationship.selectors';
 import { Tag } from '../../../features/tag/tag.model';
 import { Project } from '../../../features/project/project.model';
 import { WorkContextType } from '../../../features/work-context/work-context.model';
@@ -4334,7 +4335,7 @@ describe('taskSharedCrudMetaReducer', () => {
     });
 
     describe('deleteTask and deleteTasks', () => {
-      it('removes relationships pointing at the deleted task from other tasks', () => {
+      it('keeps relationships pointing at the deleted task on other tasks', () => {
         const state = withTasks([
           {
             id: 'a',
@@ -4355,11 +4356,17 @@ describe('taskSharedCrudMetaReducer', () => {
         ) as RootState;
 
         expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
           { targetTaskId: 'c', type: 'related to' },
         ]);
+        expect(
+          selectLinkedTasks
+            .projector(result[TASK_FEATURE_NAME], { taskId: 'a' })
+            .map(({ task: linkedTask }) => linkedTask.id),
+        ).toEqual(['c']);
       });
 
-      it('removes relationships pointing at a deleted subtask of the deleted parent', () => {
+      it('keeps relationships pointing at a deleted subtask of the deleted parent', () => {
         const state = withTasks([
           { id: 'p', subTaskIds: ['c'] },
           { id: 'c', parentId: 'p' },
@@ -4376,10 +4383,12 @@ describe('taskSharedCrudMetaReducer', () => {
           }),
         ) as RootState;
 
-        expect(relationshipsOf(result, 'a')).toEqual([]);
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'c', type: 'blocks' },
+        ]);
       });
 
-      it('removes relationships pointing at every task in a bulk delete', () => {
+      it('keeps relationships pointing at every task in a bulk delete', () => {
         const state = withTasks([
           {
             id: 'a',
@@ -4400,11 +4409,13 @@ describe('taskSharedCrudMetaReducer', () => {
         ) as RootState;
 
         expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+          { targetTaskId: 'c', type: 'causes' },
           { targetTaskId: 'd', type: 'blocks' },
         ]);
       });
 
-      it('drops relationships the deleted task stores on itself, whichever end holds them', () => {
+      it('keeps incoming relationship records when deleting a task with its own relationships', () => {
         const state = withTasks([
           {
             id: 'a',
@@ -4416,6 +4427,7 @@ describe('taskSharedCrudMetaReducer', () => {
           { id: 'b', relationships: [{ targetTaskId: 'a', type: 'blocks' }] },
           { id: 'c' },
         ]);
+        const deletedTaskSnapshot = state[TASK_FEATURE_NAME].entities['b'] as Task;
 
         const result = metaReducer(
           state,
@@ -4426,8 +4438,62 @@ describe('taskSharedCrudMetaReducer', () => {
 
         expect(result[TASK_FEATURE_NAME].entities['b']).toBeUndefined();
         expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'causes' },
           { targetTaskId: 'c', type: 'related to' },
         ]);
+
+        const restored = metaReducer(
+          result,
+          TaskSharedActions.restoreDeletedTask({
+            task: { ...deletedTaskSnapshot, subTasks: [] },
+            tagTaskIdMap: {},
+            deletedTaskEntities: { b: deletedTaskSnapshot },
+          }),
+        ) as RootState;
+        expect(relationshipsOf(restored, 'b')).toEqual([
+          { targetTaskId: 'a', type: 'blocks' },
+        ]);
+      });
+
+      it('shows the preserved relationship again when restoring the deleted target', () => {
+        const target = createMockTask({ id: 'b' });
+        const source = createMockTask({
+          id: 'a',
+          relationships: [{ targetTaskId: 'b', type: 'blocks' }],
+        });
+        const state = withTasks([source, target]);
+
+        const deleted = metaReducer(
+          state,
+          TaskSharedActions.deleteTask({
+            task: { ...target, subTasks: [] } as TaskWithSubTasks,
+          }),
+        ) as RootState;
+
+        expect(relationshipsOf(deleted, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+        expect(
+          selectLinkedTasks.projector(deleted[TASK_FEATURE_NAME], { taskId: 'a' }),
+        ).toEqual([]);
+
+        const restored = metaReducer(
+          deleted,
+          TaskSharedActions.restoreDeletedTask({
+            task: { ...target, subTasks: [] },
+            tagTaskIdMap: {},
+            deletedTaskEntities: { b: target },
+          }),
+        ) as RootState;
+
+        expect(relationshipsOf(restored, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+        expect(
+          selectLinkedTasks
+            .projector(restored[TASK_FEATURE_NAME], { taskId: 'a' })
+            .map(({ task: linkedTask, type }) => [linkedTask.id, type]),
+        ).toEqual([['b', 'blocks']]);
       });
 
       it('leaves other tasks untouched when nothing points at the deleted task', () => {
@@ -4476,7 +4542,10 @@ describe('taskSharedCrudMetaReducer', () => {
         const replayed = metaReducer(state, action) as RootState;
 
         expect(replayed).toEqual(first);
-        expect(relationshipsOf(first, 'a')).toEqual([]);
+        expect(relationshipsOf(first, 'a')).toEqual([
+          { targetTaskId: 'c', type: 'blocks' },
+          { targetTaskId: 'p', type: 'causes' },
+        ]);
         expect(relationshipsOf(state, 'a')).toEqual([
           { targetTaskId: 'c', type: 'blocks' },
           { targetTaskId: 'p', type: 'causes' },
