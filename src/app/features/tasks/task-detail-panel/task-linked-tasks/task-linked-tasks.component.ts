@@ -11,8 +11,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { combineLatest, from } from 'rxjs';
-import { distinctUntilChanged, map, switchMap } from 'rxjs/operators';
+import { distinctUntilChanged, map, switchMap } from 'rxjs';
 import { T } from '../../../../t.const';
 import { NavigateToTaskService } from '../../../../core-ui/navigate-to-task/navigate-to-task.service';
 import { selectAllProjects } from '../../../project/store/project.selectors';
@@ -96,38 +95,19 @@ export class TaskLinkedTasksComponent {
     }),
   );
 
-  // Archived tasks are not in the active state, but their relationships still
-  // count, so they are loaded for the task in view.
-  private readonly _archivedTasks = toSignal(
+  private readonly _linkedTasks = toSignal(
     toObservable(this.task).pipe(
       map((task) => task.id),
       distinctUntilChanged(),
-      switchMap(() => from(this._taskService.getArchivedTasks())),
-    ),
-    { initialValue: [] as Task[] },
-  );
-
-  private readonly _linkedTasks = toSignal(
-    combineLatest([
-      toObservable(this.task).pipe(
-        map((task) => task.id),
-        distinctUntilChanged(),
-      ),
-      toObservable(this._archivedTasks),
-    ]).pipe(
-      switchMap(([taskId, archivedTasks]) =>
-        this._store.select(selectLinkedTasks, { taskId, archivedTasks }),
-      ),
+      switchMap((taskId) => this._store.select(selectLinkedTasks, { taskId })),
     ),
     { initialValue: [] as LinkedTask[] },
   );
 
   readonly rows = computed(() => {
     const task = this.task();
-    const archivedIds = new Set(this._archivedTasks().map((t) => t.id));
     const projectsById = new Map(this._projects().map((p) => [p.id, p]));
     return this._linkedTasks().map((link) => {
-      const isArchived = archivedIds.has(link.task.id);
       const linkRelationship: TaskRelationship = {
         targetTaskId: link.task.id,
         type: link.type,
@@ -138,9 +118,7 @@ export class TaskLinkedTasksComponent {
       return {
         key: `${link.task.id}\n${link.type}`,
         link,
-        isArchived,
         isStoredHere,
-        canRemove: isStoredHere || !isArchived,
         typeLabelKey: getTypeLabelKey(link.type),
         projectTitle: link.task.projectId
           ? projectsById.get(link.task.projectId)?.title
@@ -186,8 +164,8 @@ export class TaskLinkedTasksComponent {
     this._pickerRemountKey.update((key) => key + 1);
   }
 
-  openLinkedTask(row: { link: LinkedTask; isArchived: boolean }): void {
-    this._navigateToTaskService.navigate(row.link.task.id, row.isArchived);
+  openLinkedTask(link: LinkedTask): void {
+    this._navigateToTaskService.navigate(link.task.id, false);
   }
 
   removeLink(row: { link: LinkedTask; isStoredHere: boolean }): void {

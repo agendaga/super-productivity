@@ -73,7 +73,7 @@ const sanitizeRelationshipsForWrite = (
   state: RootState,
   source: Task,
   stored: readonly TaskRelationship[],
-  requested: unknown,
+  requested: readonly TaskRelationship[],
 ): TaskRelationship[] =>
   sanitizeTaskRelationships({
     source,
