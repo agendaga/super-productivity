@@ -5,7 +5,11 @@ import { RootState } from '../../root-state';
 import { TASK_FEATURE_NAME } from '../../../features/tasks/store/task.reducer';
 import { TAG_FEATURE_NAME } from '../../../features/tag/store/tag.reducer';
 import { PROJECT_FEATURE_NAME } from '../../../features/project/store/project.reducer';
-import { Task, TaskWithSubTasks } from '../../../features/tasks/task.model';
+import {
+  Task,
+  TaskRelationship,
+  TaskWithSubTasks,
+} from '../../../features/tasks/task.model';
 import { Tag } from '../../../features/tag/tag.model';
 import { Project } from '../../../features/project/project.model';
 import { WorkContextType } from '../../../features/work-context/work-context.model';
@@ -4069,6 +4073,316 @@ describe('taskSharedCrudMetaReducer', () => {
       metaReducer(baseState, action);
 
       expect(mockReducer).toHaveBeenCalledWith(baseState, action);
+    });
+  });
+
+  describe('task relationships', () => {
+    const withTasks = (tasks: Partial<Task>[]): RootState => {
+      const base = createBaseState();
+      const entities = Object.fromEntries(
+        tasks.map((t) => [t.id, createMockTask(t)]),
+      ) as Record<string, Task>;
+      return {
+        ...base,
+        [TASK_FEATURE_NAME]: {
+          ...base[TASK_FEATURE_NAME],
+          ids: Object.keys(entities),
+          entities,
+        },
+      };
+    };
+
+    const relationshipsOf = (
+      state: RootState,
+      id: string,
+    ): TaskRelationship[] | undefined =>
+      state[TASK_FEATURE_NAME].entities[id]?.relationships;
+
+    const setRelationships = (
+      state: RootState,
+      id: string,
+      relationships: TaskRelationship[],
+    ): RootState =>
+      metaReducer(
+        state,
+        TaskSharedActions.updateTask({ task: { id, changes: { relationships } } }),
+      ) as RootState;
+
+    describe('updateTask', () => {
+      it('stores a relationship on the source task only', () => {
+        const result = setRelationships(withTasks([{ id: 'a' }, { id: 'b' }]), 'a', [
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+        expect(relationshipsOf(result, 'b')).toBeUndefined();
+      });
+
+      it('removes a relationship that is missing from the new list', () => {
+        const state = withTasks([
+          { id: 'a', relationships: [{ targetTaskId: 'b', type: 'blocks' }] },
+          { id: 'b' },
+        ]);
+
+        expect(relationshipsOf(setRelationships(state, 'a', []), 'a')).toEqual([]);
+      });
+
+      it('keeps several relationships of different types to the same task', () => {
+        const result = setRelationships(withTasks([{ id: 'a' }, { id: 'b' }]), 'a', [
+          { targetTaskId: 'b', type: 'blocks' },
+          { targetTaskId: 'b', type: 'related to' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+          { targetTaskId: 'b', type: 'related to' },
+        ]);
+      });
+
+      it('allows the reverse of a different-typed relationship stored on the target', () => {
+        const state = withTasks([
+          { id: 'a' },
+          { id: 'b', relationships: [{ targetTaskId: 'a', type: 'blocks' }] },
+        ]);
+
+        const result = setRelationships(state, 'a', [
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+      });
+
+      it('rejects a self-link', () => {
+        const result = setRelationships(withTasks([{ id: 'a' }]), 'a', [
+          { targetTaskId: 'a', type: 'related to' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([]);
+      });
+
+      it('rejects a link to the task parent or to one of its subtasks', () => {
+        const state = withTasks([
+          { id: 'p', subTaskIds: ['c'] },
+          { id: 'c', parentId: 'p' },
+        ]);
+
+        expect(
+          relationshipsOf(
+            setRelationships(state, 'c', [{ targetTaskId: 'p', type: 'blocks' }]),
+            'c',
+          ),
+        ).toEqual([]);
+        expect(
+          relationshipsOf(
+            setRelationships(state, 'p', [{ targetTaskId: 'c', type: 'related to' }]),
+            'p',
+          ),
+        ).toEqual([]);
+      });
+
+      it('rejects the mirrored form of a relationship stored on the target', () => {
+        const state = withTasks([
+          { id: 'a' },
+          { id: 'b', relationships: [{ targetTaskId: 'a', type: 'blocked by' }] },
+        ]);
+
+        const result = setRelationships(state, 'a', [
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([]);
+      });
+
+      it('rejects related to in either direction', () => {
+        const state = withTasks([
+          { id: 'a' },
+          { id: 'b', relationships: [{ targetTaskId: 'a', type: 'related to' }] },
+        ]);
+
+        const result = setRelationships(state, 'a', [
+          { targetTaskId: 'b', type: 'related to' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([]);
+      });
+
+      it('keeps only one of two identical entries in the same update', () => {
+        const result = setRelationships(withTasks([{ id: 'a' }, { id: 'b' }]), 'a', [
+          { targetTaskId: 'b', type: 'blocks' },
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+      });
+
+      it('keeps a relationship whose target is missing from the store', () => {
+        const result = setRelationships(withTasks([{ id: 'a' }]), 'a', [
+          { targetTaskId: 'archived-or-gone', type: 'causes' },
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'archived-or-gone', type: 'causes' },
+        ]);
+      });
+
+      it('drops entries with an unknown type', () => {
+        const result = setRelationships(withTasks([{ id: 'a' }, { id: 'b' }]), 'a', [
+          { targetTaskId: 'b', type: 'depends on' } as unknown as TaskRelationship,
+        ]);
+
+        expect(relationshipsOf(result, 'a')).toEqual([]);
+      });
+
+      it('leaves relationships untouched when the update does not change them', () => {
+        const state = withTasks([
+          { id: 'a', relationships: [{ targetTaskId: 'b', type: 'blocks' }] },
+          { id: 'b' },
+        ]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.updateTask({
+            task: { id: 'a', changes: { title: 'Renamed' } },
+          }),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'b', type: 'blocks' },
+        ]);
+      });
+    });
+
+    describe('addTask', () => {
+      const addWith = (
+        id: string,
+        relationships: TaskRelationship[],
+        parentId?: string,
+      ) =>
+        TaskSharedActions.addTask({
+          task: createMockTask({
+            id,
+            projectId: '',
+            tagIds: [],
+            relationships,
+            parentId,
+          }),
+          workContextId: 'project1',
+          workContextType: WorkContextType.PROJECT,
+          isAddToBottom: false,
+          isAddToBacklog: false,
+        });
+
+      it('stores a relationship sent with a new task (create and link)', () => {
+        const state = withTasks([{ id: 'a' }]);
+
+        const result = metaReducer(
+          state,
+          addWith('new', [{ targetTaskId: 'a', type: 'blocked by' }]),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'new')).toEqual([
+          { targetTaskId: 'a', type: 'blocked by' },
+        ]);
+        expect(relationshipsOf(result, 'a')).toBeUndefined();
+      });
+
+      it('rejects a new task linked to itself', () => {
+        const result = metaReducer(
+          withTasks([{ id: 'a' }]),
+          addWith('new', [{ targetTaskId: 'new', type: 'blocks' }]),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'new')).toEqual([]);
+      });
+
+      it('rejects a new subtask linked to its own parent', () => {
+        const state = withTasks([{ id: 'p', subTaskIds: [] }]);
+
+        const result = metaReducer(
+          state,
+          addWith('new', [{ targetTaskId: 'p', type: 'blocks' }], 'p'),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'new')).toEqual([]);
+      });
+    });
+
+    describe('deleteTask and deleteTasks', () => {
+      it('removes relationships pointing at the deleted task from other tasks', () => {
+        const state = withTasks([
+          {
+            id: 'a',
+            relationships: [
+              { targetTaskId: 'b', type: 'blocks' },
+              { targetTaskId: 'c', type: 'related to' },
+            ],
+          },
+          { id: 'b' },
+          { id: 'c' },
+        ]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.deleteTask({
+            task: { ...createMockTask({ id: 'b' }), subTasks: [] } as TaskWithSubTasks,
+          }),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'c', type: 'related to' },
+        ]);
+      });
+
+      it('removes relationships pointing at a deleted subtask of the deleted parent', () => {
+        const state = withTasks([
+          { id: 'p', subTaskIds: ['c'] },
+          { id: 'c', parentId: 'p' },
+          { id: 'a', relationships: [{ targetTaskId: 'c', type: 'blocks' }] },
+        ]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.deleteTask({
+            task: {
+              ...createMockTask({ id: 'p', subTaskIds: ['c'] }),
+              subTasks: [],
+            } as TaskWithSubTasks,
+          }),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'a')).toEqual([]);
+      });
+
+      it('removes relationships pointing at every task in a bulk delete', () => {
+        const state = withTasks([
+          {
+            id: 'a',
+            relationships: [
+              { targetTaskId: 'b', type: 'blocks' },
+              { targetTaskId: 'c', type: 'causes' },
+              { targetTaskId: 'd', type: 'blocks' },
+            ],
+          },
+          { id: 'b' },
+          { id: 'c' },
+          { id: 'd' },
+        ]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.deleteTasks({ taskIds: ['b', 'c'] }),
+        ) as RootState;
+
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'd', type: 'blocks' },
+        ]);
+      });
     });
   });
 });

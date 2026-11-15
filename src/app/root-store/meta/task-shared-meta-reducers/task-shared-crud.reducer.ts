@@ -39,6 +39,10 @@ import { getDbDateStr } from '../../../util/get-db-date-str';
 import { moveItemAfterAnchor } from '../../../features/work-context/store/work-context-meta.helper';
 import { canApplyConvertToSubTask } from '../../../features/tasks/util/can-convert-task-to-sub-task';
 import {
+  removeRelationshipsToTasks,
+  sanitizeTaskRelationships,
+} from '../../../features/tasks/task-relationship.util';
+import {
   ActionHandlerMap,
   addTaskToListAtAnchor,
   addTaskToPlannerDay,
@@ -90,6 +94,16 @@ const handleAddTask = (
     tagIds: taskTagIds,
     timeSpent: calcTotalTimeSpent(task.timeSpentOnDay || {}),
     projectId: task.projectId || '',
+    ...(task.relationships !== undefined
+      ? {
+          relationships: sanitizeTaskRelationships({
+            source: task,
+            stored: [],
+            requested: task.relationships,
+            getTask: (id) => state[TASK_FEATURE_NAME].entities[id],
+          }),
+        }
+      : {}),
   };
   updatedState = {
     ...updatedState,
@@ -435,6 +449,14 @@ const handleDeleteTask = (state: RootState, task: TaskWithSubTasks): RootState =
     ),
   };
 
+  updatedState = {
+    ...updatedState,
+    [TASK_FEATURE_NAME]: removeRelationshipsToTasks(updatedState[TASK_FEATURE_NAME], [
+      task.id,
+      ...(task.subTaskIds || []),
+    ]),
+  };
+
   // Remove the task from every project list, found in CURRENT STATE like the
   // tags below, not from the payload's projectId: the receiving client can
   // hold the task in another project. A bulk replay skips an LWW row of a
@@ -542,6 +564,7 @@ const handleDeleteTasks = (
     stateCalendarAutoImportDismissals,
     true,
   );
+  newTaskState = removeRelationshipsToTasks(newTaskState, allIds);
   updatedState = {
     ...updatedState,
     [TASK_FEATURE_NAME]: newTaskState,
@@ -826,6 +849,21 @@ const handleUpdateTask = (
     sanitizedTaskUpdate,
     currentTask,
   );
+
+  if (cleanedTaskUpdate.changes.relationships !== undefined) {
+    cleanedTaskUpdate = {
+      ...cleanedTaskUpdate,
+      changes: {
+        ...cleanedTaskUpdate.changes,
+        relationships: sanitizeTaskRelationships({
+          source: currentTask,
+          stored: currentTask.relationships ?? [],
+          requested: cleanedTaskUpdate.changes.relationships,
+          getTask: (id) => state[TASK_FEATURE_NAME].entities[id],
+        }),
+      },
+    };
+  }
 
   // Subtasks inherit their project from the parent, and only an existing
   // project (or '' for no project) is a usable destination for a top-level

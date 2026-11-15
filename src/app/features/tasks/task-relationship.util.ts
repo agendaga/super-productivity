@@ -1,0 +1,198 @@
+import { Update } from '@ngrx/entity';
+import {
+  Task,
+  TASK_RELATIONSHIP_TYPES,
+  TaskRelationship,
+  TaskRelationshipType,
+  TaskState,
+} from './task.model';
+import { taskAdapter } from './store/task.adapter';
+
+export interface LinkedTask {
+  task: Task;
+  /** The relationship read from the task it was asked for (inverse label applied). */
+  type: TaskRelationshipType;
+}
+
+type TaskRelationshipEndpoint = Pick<Task, 'id'> & {
+  parentId?: string;
+  subTaskIds?: readonly string[];
+};
+
+export const getInverseTaskRelationshipType = (
+  type: TaskRelationshipType,
+): TaskRelationshipType => {
+  switch (type) {
+    case 'related to':
+      return 'related to';
+    case 'blocks':
+      return 'blocked by';
+    case 'blocked by':
+      return 'blocks';
+    case 'causes':
+      return 'caused by';
+    case 'caused by':
+      return 'causes';
+  }
+};
+
+const isTaskRelationship = (value: unknown): value is TaskRelationship => {
+  if (typeof value !== 'object' || value === null) return false;
+  const { targetTaskId, type } = value as Partial<TaskRelationship>;
+  return (
+    typeof targetTaskId === 'string' &&
+    targetTaskId.length > 0 &&
+    TASK_RELATIONSHIP_TYPES.some((allowed) => allowed === type)
+  );
+};
+
+const isSameRelationship = (a: TaskRelationship, b: TaskRelationship): boolean =>
+  a.targetTaskId === b.targetTaskId && a.type === b.type;
+
+/**
+ * The one validity rule for a relationship. `typesReadFromSource` lists every
+ * relationship type already holding between source and candidate target, read
+ * from the source's side (inverse labels applied), so a mirrored duplicate
+ * and a repeated type both collide with it.
+ */
+const isTaskRelationshipAllowed = (
+  source: TaskRelationshipEndpoint,
+  target: TaskRelationshipEndpoint | undefined,
+  candidate: TaskRelationship,
+  typesReadFromSource: readonly TaskRelationshipType[],
+): boolean => {
+  if (candidate.targetTaskId === source.id) return false;
+  if (
+    target &&
+    (target.id === source.parentId ||
+      source.id === target.parentId ||
+      !!source.subTaskIds?.includes(target.id) ||
+      !!target.subTaskIds?.includes(source.id))
+  ) {
+    return false;
+  }
+  return !typesReadFromSource.includes(candidate.type);
+};
+
+/**
+ * Returns the relationships to store on `source`, given the ones stored now and
+ * the requested list. Entries already stored are kept without re-checking, so
+ * saving an unrelated change never drops a link. New entries must pass the
+ * validity rule. Malformed entries and duplicates are dropped.
+ */
+export const sanitizeTaskRelationships = ({
+  source,
+  stored,
+  requested,
+  getTask,
+}: {
+  source: TaskRelationshipEndpoint;
+  stored: readonly TaskRelationship[];
+  requested: unknown;
+  getTask: (id: string) => Task | undefined;
+}): TaskRelationship[] => {
+  if (!Array.isArray(requested)) return [...stored];
+
+  const candidates = requested.filter(isTaskRelationship);
+  const accepted = new Set<TaskRelationship>();
+  const isAlreadyAccepted = (candidate: TaskRelationship): boolean =>
+    [...accepted].some((a) => isSameRelationship(a, candidate));
+
+  candidates.forEach((candidate) => {
+    if (
+      stored.some((s) => isSameRelationship(s, candidate)) &&
+      !isAlreadyAccepted(candidate)
+    ) {
+      accepted.add(candidate);
+    }
+  });
+
+  candidates.forEach((candidate) => {
+    if (isAlreadyAccepted(candidate)) return;
+
+    const target = getTask(candidate.targetTaskId);
+    const typesReadFromSource: TaskRelationshipType[] = [
+      ...[...accepted]
+        .filter((a) => a.targetTaskId === candidate.targetTaskId)
+        .map((a) => a.type),
+      ...(target?.relationships ?? [])
+        .filter((r) => r.targetTaskId === source.id)
+        .map((r) => getInverseTaskRelationshipType(r.type)),
+    ];
+    if (isTaskRelationshipAllowed(source, target, candidate, typesReadFromSource)) {
+      accepted.add(candidate);
+    }
+  });
+
+  return candidates
+    .filter((candidate) => accepted.has(candidate))
+    .map(({ targetTaskId, type }) => ({ targetTaskId, type }));
+};
+
+/** Drops every relationship that points at one of `deletedIds` from the remaining tasks. */
+export const removeRelationshipsToTasks = (
+  taskState: TaskState,
+  deletedIds: readonly string[],
+): TaskState => {
+  const deleted = new Set(deletedIds);
+  const updates: Update<Task>[] = [];
+  for (const id of taskState.ids) {
+    const task = taskState.entities[id];
+    if (!task?.relationships?.some((r) => deleted.has(r.targetTaskId))) continue;
+    updates.push({
+      id,
+      changes: {
+        relationships: task.relationships.filter((r) => !deleted.has(r.targetTaskId)),
+      },
+    });
+  }
+  return updates.length > 0 ? taskAdapter.updateMany(updates, taskState) : taskState;
+};
+
+/**
+ * Linked tasks of `taskId`, merging relationships stored on the task with those
+ * stored on other tasks that point at it. Targets missing from both the active
+ * state and `archivedTasks` are dangling and skipped.
+ */
+export const getLinkedTasks = (
+  taskState: TaskState,
+  taskId: string,
+  archivedTasks: readonly Task[] = [],
+): LinkedTask[] => {
+  const archivedById = new Map(archivedTasks.map((task) => [task.id, task]));
+  const findTask = (id: string): Task | undefined =>
+    taskState.entities[id] ?? archivedById.get(id);
+
+  const source = findTask(taskId);
+  if (!source) return [];
+
+  const result: LinkedTask[] = [];
+  const seen = new Set<string>();
+  const add = (task: Task, type: TaskRelationshipType): void => {
+    if (task.id === taskId) return;
+    const key = `${task.id}\n${type}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push({ task, type });
+  };
+
+  for (const relationship of source.relationships ?? []) {
+    const target = findTask(relationship.targetTaskId);
+    if (target) add(target, relationship.type);
+  }
+
+  const holders = [
+    ...taskState.ids.map((id) => taskState.entities[id]),
+    ...archivedTasks,
+  ];
+  for (const holder of holders) {
+    if (!holder) continue;
+    for (const relationship of holder.relationships ?? []) {
+      if (relationship.targetTaskId === taskId) {
+        add(holder, getInverseTaskRelationshipType(relationship.type));
+      }
+    }
+  }
+
+  return result;
+};
