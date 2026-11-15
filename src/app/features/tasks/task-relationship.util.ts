@@ -50,6 +50,23 @@ export const isSameRelationship = (a: TaskRelationship, b: TaskRelationship): bo
   a.targetTaskId === b.targetTaskId && a.type === b.type;
 
 /**
+ * Relationships to store on the other end of a link, without the mirrored
+ * entry for `taskId`. `linkType` is the label read from `taskId`, so the entry
+ * sits on the other task with the inverse label.
+ */
+export const withoutMirroredRelationship = (
+  relationships: readonly TaskRelationship[] | undefined,
+  taskId: string,
+  linkType: TaskRelationshipType,
+): TaskRelationship[] => {
+  const mirrored: TaskRelationship = {
+    targetTaskId: taskId,
+    type: getInverseTaskRelationshipType(linkType),
+  };
+  return (relationships ?? []).filter((r) => !isSameRelationship(r, mirrored));
+};
+
+/**
  * The one validity rule for a relationship. `typesReadFromSource` lists every
  * relationship type already holding between source and candidate target, read
  * from the source's side (inverse labels applied), so a mirrored duplicate

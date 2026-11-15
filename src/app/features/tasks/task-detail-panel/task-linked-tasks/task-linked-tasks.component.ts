@@ -25,6 +25,7 @@ import {
   getUnlinkableTaskIds,
   isSameRelationship,
   LinkedTask,
+  withoutMirroredRelationship,
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
 import { selectLinkedTasks } from '../../store/task-relationship.selectors';
@@ -74,8 +75,9 @@ export class TaskLinkedTasksComponent {
   readonly linkableTypes = LINKABLE_TYPES;
   readonly typeLabelKeyOf = getTypeLabelKey;
   readonly selectedType = signal<LinkableRelationshipType>('related to');
-  private readonly _pickerKey = signal(0);
-  readonly pickerKeys = computed(() => [this._pickerKey()]);
+  // Bumping the key re-creates the picker after a pick, which clears its typed text.
+  private readonly _pickerRemountKey = signal(0);
+  readonly pickerRemountKeys = computed(() => [this._pickerRemountKey()]);
   readonly sourceProjectId = computed(() => this.task().projectId || null);
 
   private readonly _projects = toSignal(this._store.select(selectAllProjects), {
@@ -166,7 +168,7 @@ export class TaskLinkedTasksComponent {
         { targetTaskId: value.id, type: this.selectedType() },
       ],
     });
-    this._pickerKey.update((key) => key + 1);
+    this._pickerRemountKey.update((key) => key + 1);
   }
 
   onPickerCreate(request: { title: string; projectId: string | null }): void {
@@ -181,7 +183,7 @@ export class TaskLinkedTasksComponent {
         },
       ],
     });
-    this._pickerKey.update((key) => key + 1);
+    this._pickerRemountKey.update((key) => key + 1);
   }
 
   openLinkedTask(row: { link: LinkedTask; isArchived: boolean }): void {
@@ -204,10 +206,11 @@ export class TaskLinkedTasksComponent {
       return;
     }
     // Stored on the other task: remove it there, read with the inverse label.
-    const inverseType = getInverseTaskRelationshipType(link.type);
     this._taskService.update(link.task.id, {
-      relationships: (link.task.relationships ?? []).filter(
-        (r) => !isSameRelationship(r, { targetTaskId: task.id, type: inverseType }),
+      relationships: withoutMirroredRelationship(
+        link.task.relationships,
+        task.id,
+        link.type,
       ),
     });
   }
