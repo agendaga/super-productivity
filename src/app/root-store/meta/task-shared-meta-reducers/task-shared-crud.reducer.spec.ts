@@ -4383,6 +4383,85 @@ describe('taskSharedCrudMetaReducer', () => {
           { targetTaskId: 'd', type: 'blocks' },
         ]);
       });
+
+      it('drops relationships the deleted task stores on itself, whichever end holds them', () => {
+        const state = withTasks([
+          {
+            id: 'a',
+            relationships: [
+              { targetTaskId: 'b', type: 'causes' },
+              { targetTaskId: 'c', type: 'related to' },
+            ],
+          },
+          { id: 'b', relationships: [{ targetTaskId: 'a', type: 'blocks' }] },
+          { id: 'c' },
+        ]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.deleteTask({
+            task: { ...createMockTask({ id: 'b' }), subTasks: [] } as TaskWithSubTasks,
+          }),
+        ) as RootState;
+
+        expect(result[TASK_FEATURE_NAME].entities['b']).toBeUndefined();
+        expect(relationshipsOf(result, 'a')).toEqual([
+          { targetTaskId: 'c', type: 'related to' },
+        ]);
+      });
+
+      it('leaves other tasks untouched when nothing points at the deleted task', () => {
+        const state = withTasks([
+          { id: 'a', relationships: [{ targetTaskId: 'c', type: 'blocks' }] },
+          { id: 'b' },
+          { id: 'c' },
+        ]);
+
+        const result = metaReducer(
+          state,
+          TaskSharedActions.deleteTask({
+            task: { ...createMockTask({ id: 'b' }), subTasks: [] } as TaskWithSubTasks,
+          }),
+        ) as RootState;
+
+        expect(result[TASK_FEATURE_NAME].entities['a']).toBe(
+          state[TASK_FEATURE_NAME].entities['a'],
+        );
+      });
+
+      it('gives the same state when the delete op is replayed from the same state', () => {
+        const state = withTasks([
+          {
+            id: 'p',
+            subTaskIds: ['c'],
+            relationships: [{ targetTaskId: 'a', type: 'related to' }],
+          },
+          { id: 'c', parentId: 'p' },
+          {
+            id: 'a',
+            relationships: [
+              { targetTaskId: 'c', type: 'blocks' },
+              { targetTaskId: 'p', type: 'causes' },
+            ],
+          },
+        ]);
+        const action = TaskSharedActions.deleteTask({
+          task: {
+            ...createMockTask({ id: 'p', subTaskIds: ['c'] }),
+            subTasks: [],
+          } as TaskWithSubTasks,
+        });
+
+        const first = metaReducer(state, action) as RootState;
+        const replayed = metaReducer(state, action) as RootState;
+
+        expect(replayed).toEqual(first);
+        expect(relationshipsOf(first, 'a')).toEqual([]);
+        expect(relationshipsOf(state, 'a')).toEqual([
+          { targetTaskId: 'c', type: 'blocks' },
+          { targetTaskId: 'p', type: 'causes' },
+        ]);
+      });
     });
   });
 });
