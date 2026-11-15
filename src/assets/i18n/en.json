@@ -1868,6 +1868,17 @@
         "TOOLTIP_ENABLE_SEARCH": "Enable issue search (Ctrl+1)",
         "TOOLTIP_NOTE": "Note (Ctrl+2)"
       },
+      "LINKED_TASKS": {
+        "ARCHIVED": "Archived",
+        "EMPTY": "No linked tasks yet.",
+        "REMOVE": "Remove link",
+        "TYPE_BLOCKED_BY": "Blocked by",
+        "TYPE_BLOCKS": "Blocks",
+        "TYPE_CAUSED_BY": "Caused by",
+        "TYPE_CAUSES": "Causes",
+        "TYPE_LABEL": "Relationship",
+        "TYPE_RELATED_TO": "Related to"
+      },
       "ADDITIONAL_INFO": {
         "ADD_ATTACHMENT": "Links & Files",
         "CHECKLIST_ACTIONS": "Checklist actions",
@@ -1889,6 +1900,7 @@
         "DUE": "Planned for",
         "FROM_PARENT": "(from parent)",
         "ISSUE": "Issue Link",
+        "LINKED_TASKS": "Linked tasks",
         "LOCAL_ATTACHMENTS": "Local attachments",
         "NOTES": "Note",
         "PARENT": "Parent",
