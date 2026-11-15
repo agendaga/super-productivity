@@ -1,6 +1,4 @@
-import { Update } from '@ngrx/entity';
 import { Task, TaskRelationship, TaskRelationshipType, TaskState } from './task.model';
-import { taskAdapter } from './store/task.adapter';
 
 export interface LinkedTask {
   task: Task;
@@ -163,26 +161,6 @@ export const getUnlinkableTaskIds = ({
       );
     })
     .map((target) => target.id);
-
-/** Drops every relationship that points at one of `deletedIds` from the remaining tasks. */
-export const removeRelationshipsToTasks = (
-  taskState: TaskState,
-  deletedIds: readonly string[],
-): TaskState => {
-  const deleted = new Set(deletedIds);
-  const updates: Update<Task>[] = [];
-  for (const id of taskState.ids) {
-    const task = taskState.entities[id];
-    if (!task?.relationships?.some((r) => deleted.has(r.targetTaskId))) continue;
-    updates.push({
-      id,
-      changes: {
-        relationships: task.relationships.filter((r) => !deleted.has(r.targetTaskId)),
-      },
-    });
-  }
-  return updates.length > 0 ? taskAdapter.updateMany(updates, taskState) : taskState;
-};
 
 /**
  * Linked tasks of `taskId`, merging relationships stored on the task with those

@@ -45,7 +45,7 @@ const getStoredTaskByTitle = (page: Page, title: string): Promise<StoredTask | n
 test.describe('Task relationships: deleting a linked task', () => {
   test.use({ locale: 'en-US', timezoneId: 'UTC' });
 
-  test('removes the link from the source task when the linked task is deleted', async ({
+  test('hides the link while the linked task is deleted and restores it on undo', async ({
     page,
     workViewPage,
     taskPage,
@@ -89,6 +89,23 @@ test.describe('Task relationships: deleting a linked task', () => {
     await expect(linkedTasks.locator('.linked-tasks__empty')).toBeVisible();
 
     const sourceAfterDelete = await getStoredTaskByTitle(page, 'Link source');
-    expect(sourceAfterDelete?.relationships).toEqual([]);
+    expect(sourceAfterDelete?.relationships).toEqual([
+      { targetTaskId: target!.id, type: 'related to' },
+    ]);
+
+    const undoButton = page.locator(
+      'snack-custom button.action, .mat-mdc-snack-bar-container button',
+    );
+    await undoButton.waitFor({ state: 'visible', timeout: 5000 });
+    await undoButton.click();
+
+    await expect(taskPage.getTaskByText('Link target')).toBeVisible();
+    await expect(
+      linkedTasks.locator('.linked-tasks__item').filter({ hasText: 'Link target' }),
+    ).toBeVisible();
+    const sourceAfterRestore = await getStoredTaskByTitle(page, 'Link source');
+    expect(sourceAfterRestore?.relationships).toEqual([
+      { targetTaskId: target!.id, type: 'related to' },
+    ]);
   });
 });
