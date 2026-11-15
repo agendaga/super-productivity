@@ -215,6 +215,17 @@ export class SelectTaskComponent {
     );
   }
 
+  // Excluded tasks are never listed, so Enter must check them separately to avoid
+  // creating a duplicate of one.
+  private _hasExcludedTaskTitled(title: string): boolean {
+    const normalized = title.toLowerCase();
+    return this._tasks().some(
+      (task) =>
+        this._excludedIds().has(task.id) &&
+        task.title?.trim().toLowerCase() === normalized,
+    );
+  }
+
   // TODO: Skipped for migration because:
   //  Accessor inputs cannot be migrated as they are too complex.
   @Input() set initialTask(task: Task) {
@@ -257,7 +268,11 @@ export class SelectTaskComponent {
 
   onEnter(): void {
     const typed = this._typedText();
-    if (!typed?.title || this.filteredTasks().length > 0) {
+    if (
+      !typed?.title ||
+      this.filteredTasks().length > 0 ||
+      this._hasExcludedTaskTitled(typed.title)
+    ) {
       return;
     }
     this.taskCreate.emit({ title: typed.title, projectId: this.createProjectId() });

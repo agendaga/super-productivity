@@ -348,6 +348,28 @@ describe('SelectTaskComponent', () => {
       expect(created).toEqual([]);
     });
 
+    it('does not create when an excluded task has the typed title', () => {
+      fixture.componentRef.setInput('excludedTaskIds', ['task-1']);
+      fixture.detectChanges();
+      component.taskSelectCtrl.setValue('  VALID task ');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([]);
+    });
+
+    it('still creates from a partial title that only matches an excluded task', () => {
+      fixture.componentRef.setInput('excludedTaskIds', ['task-1']);
+      fixture.detectChanges();
+      component.taskSelectCtrl.setValue('valid');
+      fixture.detectChanges();
+
+      pressEnter();
+
+      expect(created).toEqual([{ title: 'valid', projectId: null }]);
+    });
+
     it('does not create from a title that is only a project', () => {
       component.taskSelectCtrl.setValue('+home');
       fixture.detectChanges();
