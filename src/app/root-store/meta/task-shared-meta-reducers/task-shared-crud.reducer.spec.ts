@@ -10,7 +10,7 @@ import {
   TaskRelationship,
   TaskWithSubTasks,
 } from '../../../features/tasks/task.model';
-import { selectLinkedTasks } from '../../../features/tasks/store/task-relationship.selectors';
+import { selectRelatedTasks } from '../../../features/tasks/store/task-relationship.selectors';
 import { Tag } from '../../../features/tag/tag.model';
 import { Project } from '../../../features/project/project.model';
 import { WorkContextType } from '../../../features/work-context/work-context.model';
@@ -4203,7 +4203,7 @@ describe('taskSharedCrudMetaReducer', () => {
         expect(relationshipsOf(createdFirst, 'a')).toEqual([...relationship]);
         expect(relationshipsOf(convertedFirst, 'a')).toEqual([...relationship]);
         expect(
-          selectLinkedTasks.projector(convertedFirst[TASK_FEATURE_NAME], {
+          selectRelatedTasks.projector(convertedFirst[TASK_FEATURE_NAME], {
             taskId: 'a',
           }),
         ).toEqual([]);
@@ -4390,7 +4390,7 @@ describe('taskSharedCrudMetaReducer', () => {
           { targetTaskId: 'c', type: 'related to' },
         ]);
         expect(
-          selectLinkedTasks
+          selectRelatedTasks
             .projector(result[TASK_FEATURE_NAME], { taskId: 'a' })
             .map(({ task: linkedTask }) => linkedTask.id),
         ).toEqual(['c']);
@@ -4504,7 +4504,7 @@ describe('taskSharedCrudMetaReducer', () => {
           { targetTaskId: 'b', type: 'blocks' },
         ]);
         expect(
-          selectLinkedTasks.projector(deleted[TASK_FEATURE_NAME], { taskId: 'a' }),
+          selectRelatedTasks.projector(deleted[TASK_FEATURE_NAME], { taskId: 'a' }),
         ).toEqual([]);
 
         const restored = metaReducer(
@@ -4520,7 +4520,7 @@ describe('taskSharedCrudMetaReducer', () => {
           { targetTaskId: 'b', type: 'blocks' },
         ]);
         expect(
-          selectLinkedTasks
+          selectRelatedTasks
             .projector(restored[TASK_FEATURE_NAME], { taskId: 'a' })
             .map(({ task: linkedTask, type }) => [linkedTask.id, type]),
         ).toEqual([['b', 'blocks']]);

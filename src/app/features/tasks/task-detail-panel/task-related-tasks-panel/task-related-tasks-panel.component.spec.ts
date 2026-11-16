@@ -9,10 +9,10 @@ import { TaskService } from '../../task.service';
 import { Task, TaskRelationship, TaskState } from '../../task.model';
 import { SelectTaskComponent } from '../../select-task/select-task.component';
 import { selectAllTasks } from '../../store/task.selectors';
-import { selectLinkedTasks } from '../../store/task-relationship.selectors';
+import { selectRelatedTasks } from '../../store/task-relationship.selectors';
 import { createMockTask } from '../../../../root-store/meta/task-shared-meta-reducers/test-utils';
 import { selectAllProjects } from '../../../project/store/project.selectors';
-import { TaskLinkedTasksComponent } from './task-linked-tasks.component';
+import { TaskRelatedTasksPanelComponent } from './task-related-tasks-panel.component';
 import { T } from '../../../../t.const';
 
 @Component({
@@ -41,8 +41,8 @@ const stateOf = (tasks: Task[]): TaskState => ({
   isDataLoaded: true,
 });
 
-describe('TaskLinkedTasksComponent', () => {
-  let fixture: ComponentFixture<TaskLinkedTasksComponent>;
+describe('TaskRelatedTasksPanelComponent', () => {
+  let fixture: ComponentFixture<TaskRelatedTasksPanelComponent>;
   let mockTaskService: jasmine.SpyObj<TaskService>;
   let mockNavigate: jasmine.SpyObj<NavigateToTaskService>;
 
@@ -58,7 +58,7 @@ describe('TaskLinkedTasksComponent', () => {
           ? of([])
           : selector === selectAllTasks
             ? of(tasks)
-            : of(selectLinkedTasks.projector(taskState, props ?? { taskId: sourceId })),
+            : of(selectRelatedTasks.projector(taskState, props ?? { taskId: sourceId })),
       dispatch: () => undefined,
     };
     mockTaskService = jasmine.createSpyObj('TaskService', [
@@ -70,20 +70,20 @@ describe('TaskLinkedTasksComponent', () => {
     mockNavigate = jasmine.createSpyObj('NavigateToTaskService', ['navigate']);
 
     await TestBed.configureTestingModule({
-      imports: [TaskLinkedTasksComponent, TranslateModule.forRoot()],
+      imports: [TaskRelatedTasksPanelComponent, TranslateModule.forRoot()],
       providers: [
         { provide: Store, useValue: mockStore },
         { provide: TaskService, useValue: mockTaskService },
         { provide: NavigateToTaskService, useValue: mockNavigate },
       ],
     })
-      .overrideComponent(TaskLinkedTasksComponent, {
+      .overrideComponent(TaskRelatedTasksPanelComponent, {
         remove: { imports: [SelectTaskComponent] },
         add: { imports: [SelectTaskStubComponent] },
       })
       .compileComponents();
 
-    fixture = TestBed.createComponent(TaskLinkedTasksComponent);
+    fixture = TestBed.createComponent(TaskRelatedTasksPanelComponent);
     fixture.componentRef.setInput(
       'task',
       tasks.find((t) => t.id === sourceId),
@@ -94,7 +94,7 @@ describe('TaskLinkedTasksComponent', () => {
   };
 
   const rows = (): HTMLElement[] =>
-    Array.from(fixture.nativeElement.querySelectorAll('.linked-tasks__item'));
+    Array.from(fixture.nativeElement.querySelectorAll('.related-tasks-panel__item'));
 
   const picker = (): SelectTaskStubComponent =>
     fixture.debugElement.query(By.directive(SelectTaskStubComponent))
@@ -107,7 +107,7 @@ describe('TaskLinkedTasksComponent', () => {
     fixture.detectChanges();
   };
 
-  it('shows each linked task with the label read from this task', async () => {
+  it('shows each related task with the label read from this task', async () => {
     await setup(
       [
         createMockTask({ id: 'a', title: 'Source', relationships: [rel('b', 'blocks')] }),
@@ -123,17 +123,17 @@ describe('TaskLinkedTasksComponent', () => {
 
     const texts = rows().map((row) => row.textContent ?? '');
     expect(texts.length).toBe(2);
-    expect(texts[0]).toContain(T.F.TASK.LINKED_TASKS.TYPE_BLOCKS);
+    expect(texts[0]).toContain(T.F.TASK.RELATED_TASKS.TYPE_BLOCKS);
     expect(texts[0]).toContain('Target');
-    expect(texts[1]).toContain(T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY);
+    expect(texts[1]).toContain(T.F.TASK.RELATED_TASKS.TYPE_BLOCKED_BY);
     expect(texts[1]).toContain('Blocker');
 
-    (rows()[0].querySelector('.linked-tasks__open') as HTMLElement).click();
+    (rows()[0].querySelector('.related-tasks-panel__open') as HTMLElement).click();
 
     expect(mockNavigate.navigate).toHaveBeenCalledOnceWith('b', false);
   });
 
-  it('adds the chosen type to this task only, keeping its existing links', async () => {
+  it('adds the chosen type to this task only, keeping its existing relationships', async () => {
     await setup(
       [
         createMockTask({ id: 'a', title: 'Source', relationships: [rel('c', 'causes')] }),
@@ -195,10 +195,10 @@ describe('TaskLinkedTasksComponent', () => {
     );
 
     const row = rows()[0];
-    const title = row.querySelector('.linked-tasks__title') as HTMLElement;
+    const title = row.querySelector('.related-tasks-panel__title') as HTMLElement;
 
     expect(getComputedStyle(title).whiteSpace).toBe('normal');
-    expect(row.querySelector('.linked-tasks__remove')).not.toBeNull();
+    expect(row.querySelector('.related-tasks-panel__remove')).not.toBeNull();
   });
 
   it('stores a relationship created from the higher-ID task on the lower-ID task with its inverse label', async () => {
@@ -262,7 +262,7 @@ describe('TaskLinkedTasksComponent', () => {
       expect(excluded()).toEqual(jasmine.arrayWithExactContents(['a', 'p', 's']));
     });
 
-    it('excludes targets already linked with the chosen type, stored on either side', async () => {
+    it('excludes targets already related with the chosen type, stored on either side', async () => {
       await setup(
         [
           createMockTask({
@@ -315,7 +315,9 @@ describe('TaskLinkedTasksComponent', () => {
       'a',
     );
 
-    (fixture.nativeElement.querySelector('.linked-tasks__remove') as HTMLElement).click();
+    (
+      fixture.nativeElement.querySelector('.related-tasks-panel__remove') as HTMLElement
+    ).click();
 
     expect(mockTaskService.update).toHaveBeenCalledOnceWith('a', { relationships: [] });
   });
@@ -329,7 +331,9 @@ describe('TaskLinkedTasksComponent', () => {
       'z',
     );
 
-    (fixture.nativeElement.querySelector('.linked-tasks__remove') as HTMLElement).click();
+    (
+      fixture.nativeElement.querySelector('.related-tasks-panel__remove') as HTMLElement
+    ).click();
 
     expect(mockTaskService.update).toHaveBeenCalledOnceWith('a', { relationships: [] });
   });
@@ -347,7 +351,9 @@ describe('TaskLinkedTasksComponent', () => {
       'z',
     );
 
-    (fixture.nativeElement.querySelector('.linked-tasks__remove') as HTMLElement).click();
+    (
+      fixture.nativeElement.querySelector('.related-tasks-panel__remove') as HTMLElement
+    ).click();
 
     expect(mockTaskService.update).toHaveBeenCalledTimes(2);
     expect(mockTaskService.update).toHaveBeenCalledWith('a', { relationships: [] });
@@ -368,7 +374,7 @@ describe('TaskLinkedTasksComponent', () => {
   });
 
   describe('creating a task from the picker', () => {
-    it('creates a linked task and stores the relationship on the lower-ID task', async () => {
+    it('creates a related task and stores the relationship on the lower-ID task', async () => {
       await setup([createMockTask({ id: 'a', title: 'Source' })], 'a');
       mockTaskService.add.and.returnValue('z');
 

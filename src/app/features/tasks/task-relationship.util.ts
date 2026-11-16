@@ -1,35 +1,35 @@
 import { Task, TaskRelationship, TaskRelationshipType, TaskState } from './task.model';
 
-export interface LinkedTask {
+export interface RelatedTask {
   task: Task;
   /** The relationship read from the task it was asked for (inverse label applied). */
   type: TaskRelationshipType;
 }
 
-export const getLinkedTasksByTaskId = (
+export const getRelatedTasksByTaskId = (
   taskState: TaskState,
-): Map<string, LinkedTask[]> => {
-  const linkedTasksByTaskId = new Map<string, LinkedTask[]>();
+): Map<string, RelatedTask[]> => {
+  const relatedTasksByTaskId = new Map<string, RelatedTask[]>();
   const seenByTaskId = new Map<string, Set<string>>();
 
-  const add = (taskId: string, linkedTask: Task, type: TaskRelationshipType): void => {
-    if (taskId === linkedTask.id) return;
+  const add = (taskId: string, relatedTask: Task, type: TaskRelationshipType): void => {
+    if (taskId === relatedTask.id) return;
 
     let seen = seenByTaskId.get(taskId);
     if (!seen) {
       seen = new Set();
       seenByTaskId.set(taskId, seen);
     }
-    const key = `${linkedTask.id}\n${type}`;
+    const key = `${relatedTask.id}\n${type}`;
     if (seen.has(key)) return;
     seen.add(key);
 
-    let linkedTasks = linkedTasksByTaskId.get(taskId);
-    if (!linkedTasks) {
-      linkedTasks = [];
-      linkedTasksByTaskId.set(taskId, linkedTasks);
+    let relatedTasks = relatedTasksByTaskId.get(taskId);
+    if (!relatedTasks) {
+      relatedTasks = [];
+      relatedTasksByTaskId.set(taskId, relatedTasks);
     }
-    linkedTasks.push({ task: linkedTask, type });
+    relatedTasks.push({ task: relatedTask, type });
   };
 
   for (const id of taskState.ids) {
@@ -56,7 +56,7 @@ export const getLinkedTasksByTaskId = (
     }
   }
 
-  return linkedTasksByTaskId;
+  return relatedTasksByTaskId;
 };
 
 type TaskRelationshipEndpoint = Pick<Task, 'id'> & {
@@ -214,15 +214,15 @@ export const getUnlinkableTaskIds = ({
     .map((target) => target.id);
 
 /**
- * Linked tasks of `taskId`, merging relationships stored on the task with those
+ * Related tasks of `taskId`, merging relationships stored on the task with those
  * stored on other live tasks that point at it. Targets outside the task state
  * are skipped without changing their stored relationships.
  */
-export const getLinkedTasks = (taskState: TaskState, taskId: string): LinkedTask[] => {
+export const getRelatedTasks = (taskState: TaskState, taskId: string): RelatedTask[] => {
   const source = taskState.entities[taskId];
   if (!source || source.parentId) return [];
 
-  const result: LinkedTask[] = [];
+  const result: RelatedTask[] = [];
   const seen = new Set<string>();
   const add = (task: Task, type: TaskRelationshipType): void => {
     if (task.id === taskId) return;

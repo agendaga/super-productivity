@@ -29,23 +29,23 @@ import {
   getInverseTaskRelationshipType,
   getUnlinkableTaskIds,
   isSameRelationship,
-  LinkedTask,
+  RelatedTask,
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
-import { selectLinkedTasks } from '../../store/task-relationship.selectors';
+import { selectRelatedTasks } from '../../store/task-relationship.selectors';
 
 const getTypeLabelKey = (type: TaskRelationshipType): string => {
   switch (type) {
     case 'related to':
-      return T.F.TASK.LINKED_TASKS.TYPE_RELATED_TO;
+      return T.F.TASK.RELATED_TASKS.TYPE_RELATED_TO;
     case 'blocks':
-      return T.F.TASK.LINKED_TASKS.TYPE_BLOCKS;
+      return T.F.TASK.RELATED_TASKS.TYPE_BLOCKS;
     case 'blocked by':
-      return T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY;
+      return T.F.TASK.RELATED_TASKS.TYPE_BLOCKED_BY;
     case 'causes':
-      return T.F.TASK.LINKED_TASKS.TYPE_CAUSES;
+      return T.F.TASK.RELATED_TASKS.TYPE_CAUSES;
     case 'caused by':
-      return T.F.TASK.LINKED_TASKS.TYPE_CAUSED_BY;
+      return T.F.TASK.RELATED_TASKS.TYPE_CAUSED_BY;
     default: {
       const unreachable: never = type;
       return unreachable;
@@ -54,13 +54,13 @@ const getTypeLabelKey = (type: TaskRelationshipType): string => {
 };
 
 @Component({
-  selector: 'task-linked-tasks',
-  templateUrl: './task-linked-tasks.component.html',
-  styleUrl: './task-linked-tasks.component.scss',
+  selector: 'task-related-tasks-panel',
+  templateUrl: './task-related-tasks-panel.component.html',
+  styleUrl: './task-related-tasks-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TranslatePipe, MatButton, MatIconButton, MatIcon, SelectTaskComponent],
 })
-export class TaskLinkedTasksComponent {
+export class TaskRelatedTasksPanelComponent {
   private readonly _store = inject(Store);
   private readonly _taskService = inject(TaskService);
   private readonly _navigateToTaskService = inject(NavigateToTaskService);
@@ -92,33 +92,33 @@ export class TaskLinkedTasksComponent {
     }),
   );
 
-  private readonly _linkedTasks = toSignal(
+  private readonly _relatedTasks = toSignal(
     toObservable(this.task).pipe(
       map((task) => task.id),
       distinctUntilChanged(),
-      switchMap((taskId) => this._store.select(selectLinkedTasks, { taskId })),
+      switchMap((taskId) => this._store.select(selectRelatedTasks, { taskId })),
     ),
-    { initialValue: [] as LinkedTask[] },
+    { initialValue: [] as RelatedTask[] },
   );
 
   readonly rows = computed(() => {
     const task = this.task();
     const projectsById = new Map(this._projects().map((p) => [p.id, p]));
-    return this._linkedTasks().map((link) => {
-      const linkRelationship: TaskRelationship = {
-        targetTaskId: link.task.id,
-        type: link.type,
+    return this._relatedTasks().map((related) => {
+      const relationship: TaskRelationship = {
+        targetTaskId: related.task.id,
+        type: related.type,
       };
       const isStoredHere = (task.relationships ?? []).some((r) =>
-        isSameRelationship(r, linkRelationship),
+        isSameRelationship(r, relationship),
       );
       return {
-        key: `${link.task.id}\n${link.type}`,
-        link,
+        key: `${related.task.id}\n${related.type}`,
+        related,
         isStoredHere,
-        typeLabelKey: getTypeLabelKey(link.type),
-        projectTitle: link.task.projectId
-          ? projectsById.get(link.task.projectId)?.title
+        typeLabelKey: getTypeLabelKey(related.type),
+        projectTitle: related.task.projectId
+          ? projectsById.get(related.task.projectId)?.title
           : undefined,
       };
     });
@@ -133,7 +133,7 @@ export class TaskLinkedTasksComponent {
   }
 
   onPickerChange(value: Task | string): void {
-    // A typed title that matches nothing is not a link yet.
+    // A typed title that matches nothing is not a relationship yet.
     if (typeof value === 'string') return;
 
     const canonical = getCanonicalTaskRelationship(
@@ -178,16 +178,20 @@ export class TaskLinkedTasksComponent {
     this._pickerRemountKey.update((key) => key + 1);
   }
 
-  openLinkedTask(link: LinkedTask): void {
-    this._navigateToTaskService.navigate(link.task.id, false);
+  openRelatedTask(related: RelatedTask): void {
+    this._navigateToTaskService.navigate(related.task.id, false);
   }
 
-  removeLink(row: { link: LinkedTask; isStoredHere: boolean }): void {
+  removeRelationship(row: { related: RelatedTask; isStoredHere: boolean }): void {
     const task = this.task();
-    const { link } = row;
-    const canonical = getCanonicalTaskRelationship(task.id, link.task.id, link.type);
-    const holder = canonical.holderTaskId === task.id ? task : link.task;
-    const other = holder.id === task.id ? link.task : task;
+    const { related } = row;
+    const canonical = getCanonicalTaskRelationship(
+      task.id,
+      related.task.id,
+      related.type,
+    );
+    const holder = canonical.holderTaskId === task.id ? task : related.task;
+    const other = holder.id === task.id ? related.task : task;
     const holderRelationships = (holder.relationships ?? []).filter(
       (relationship) => !isSameRelationship(relationship, canonical.relationship),
     );

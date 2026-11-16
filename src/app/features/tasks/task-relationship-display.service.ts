@@ -9,13 +9,19 @@ import {
 import { Store } from '@ngrx/store';
 import { selectAllProjects } from '../project/store/project.selectors';
 import { selectTaskFeatureState } from './store/task.selectors';
-import { LinkedTask, getLinkedTasksByTaskId } from './task-relationship.util';
+import { RelatedTask, getRelatedTasksByTaskId } from './task-relationship.util';
 
-const EMPTY_LINKS: LinkedTask[] = [];
+const EMPTY_RELATIONS: RelatedTask[] = [];
 
-const areSameLinks = (a: readonly LinkedTask[], b: readonly LinkedTask[]): boolean =>
+const areSameRelations = (
+  a: readonly RelatedTask[],
+  b: readonly RelatedTask[],
+): boolean =>
   a.length === b.length &&
-  a.every((link, index) => link.task === b[index]?.task && link.type === b[index]?.type);
+  a.every(
+    (related, index) =>
+      related.task === b[index]?.task && related.type === b[index]?.type,
+  );
 
 @Injectable({ providedIn: 'root' })
 export class TaskRelationshipDisplayService {
@@ -24,30 +30,30 @@ export class TaskRelationshipDisplayService {
 
   readonly projects = this._store.selectSignal(selectAllProjects);
 
-  private _linkedTasksByTaskId = getLinkedTasksByTaskId(this._taskState());
-  private readonly _taskLinksById = new Map<
+  private _relatedTasksByTaskId = getRelatedTasksByTaskId(this._taskState());
+  private readonly _taskRelationsById = new Map<
     string,
-    WritableSignal<readonly LinkedTask[]>
+    WritableSignal<readonly RelatedTask[]>
   >();
 
   constructor() {
     effect(() => {
-      this._linkedTasksByTaskId = getLinkedTasksByTaskId(this._taskState());
-      this._taskLinksById.forEach((taskLinks, taskId) => {
-        const nextLinks = this._linkedTasksByTaskId.get(taskId) ?? EMPTY_LINKS;
-        if (!areSameLinks(taskLinks(), nextLinks)) {
-          taskLinks.set(nextLinks);
+      this._relatedTasksByTaskId = getRelatedTasksByTaskId(this._taskState());
+      this._taskRelationsById.forEach((taskRelations, taskId) => {
+        const nextRelations = this._relatedTasksByTaskId.get(taskId) ?? EMPTY_RELATIONS;
+        if (!areSameRelations(taskRelations(), nextRelations)) {
+          taskRelations.set(nextRelations);
         }
       });
     });
   }
 
-  linkedTasksForTask(taskId: string): Signal<readonly LinkedTask[]> {
-    let taskLinks = this._taskLinksById.get(taskId);
-    if (!taskLinks) {
-      taskLinks = signal(this._linkedTasksByTaskId.get(taskId) ?? EMPTY_LINKS);
-      this._taskLinksById.set(taskId, taskLinks);
+  relatedTasksForTask(taskId: string): Signal<readonly RelatedTask[]> {
+    let taskRelations = this._taskRelationsById.get(taskId);
+    if (!taskRelations) {
+      taskRelations = signal(this._relatedTasksByTaskId.get(taskId) ?? EMPTY_RELATIONS);
+      this._taskRelationsById.set(taskId, taskRelations);
     }
-    return taskLinks.asReadonly();
+    return taskRelations.asReadonly();
   }
 }

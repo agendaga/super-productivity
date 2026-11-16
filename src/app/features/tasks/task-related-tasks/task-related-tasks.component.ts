@@ -6,18 +6,20 @@ import {
   input,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { NavigateToTaskService } from '../../../core-ui/navigate-to-task/navigate-to-task.service';
 import { DEFAULT_PROJECT_ICON } from '../../project/project.const';
 import { Project } from '../../project/project.model';
 import { T } from '../../../t.const';
 import { isSingleEmoji } from '../../../util/extract-first-emoji';
+import { RelatedTasksSectionService } from '../related-tasks-section.service';
 import { TaskRelationshipDisplayService } from '../task-relationship-display.service';
+import { TaskService } from '../task.service';
 import { TaskRelationshipType } from '../task.model';
-import { LinkedTask } from '../task-relationship.util';
+import { RelatedTask } from '../task-relationship.util';
 
 interface RelatedTaskRow {
-  task: LinkedTask['task'];
+  task: RelatedTask['task'];
   types: TaskRelationshipType[];
   project?: Project;
   isProjectIconEmoji: boolean;
@@ -26,15 +28,15 @@ interface RelatedTaskRow {
 const getTypeLabelKey = (type: TaskRelationshipType): string => {
   switch (type) {
     case 'related to':
-      return T.F.TASK.LINKED_TASKS.TYPE_RELATED_TO;
+      return T.F.TASK.RELATED_TASKS.TYPE_RELATED_TO;
     case 'blocks':
-      return T.F.TASK.LINKED_TASKS.TYPE_BLOCKS;
+      return T.F.TASK.RELATED_TASKS.TYPE_BLOCKS;
     case 'blocked by':
-      return T.F.TASK.LINKED_TASKS.TYPE_BLOCKED_BY;
+      return T.F.TASK.RELATED_TASKS.TYPE_BLOCKED_BY;
     case 'causes':
-      return T.F.TASK.LINKED_TASKS.TYPE_CAUSES;
+      return T.F.TASK.RELATED_TASKS.TYPE_CAUSES;
     case 'caused by':
-      return T.F.TASK.LINKED_TASKS.TYPE_CAUSED_BY;
+      return T.F.TASK.RELATED_TASKS.TYPE_CAUSED_BY;
   }
 };
 
@@ -43,40 +45,41 @@ const getTypeLabelKey = (type: TaskRelationshipType): string => {
   templateUrl: './task-related-tasks.component.html',
   styleUrl: './task-related-tasks.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIcon, TranslatePipe],
+  imports: [MatIcon, MatTooltip, TranslatePipe],
 })
 export class TaskRelatedTasksComponent {
   private readonly _relationshipDisplay = inject(TaskRelationshipDisplayService);
-  private readonly _navigateToTask = inject(NavigateToTaskService);
+  private readonly _relatedTasksSection = inject(RelatedTasksSectionService);
+  private readonly _taskService = inject(TaskService);
 
   readonly taskId = input.required<string>();
   readonly projectId = input.required<string>();
   readonly defaultProjectIcon = DEFAULT_PROJECT_ICON;
 
   readonly rows = computed(() => {
-    const linkedTasks = this._relationshipDisplay.linkedTasksForTask(this.taskId())();
+    const relatedTasks = this._relationshipDisplay.relatedTasksForTask(this.taskId())();
     const projectsById = new Map(
       this._relationshipDisplay.projects().map((project) => [project.id, project]),
     );
     const grouped = new Map<string, RelatedTaskRow>();
 
-    for (const link of linkedTasks) {
-      let row = grouped.get(link.task.id);
+    for (const related of relatedTasks) {
+      let row = grouped.get(related.task.id);
       if (!row) {
         const project =
-          link.task.projectId !== this.projectId()
-            ? projectsById.get(link.task.projectId)
+          related.task.projectId !== this.projectId()
+            ? projectsById.get(related.task.projectId)
             : undefined;
         row = {
-          task: link.task,
+          task: related.task,
           types: [],
           project,
           isProjectIconEmoji: !!project?.icon && isSingleEmoji(project.icon),
         };
-        grouped.set(link.task.id, row);
+        grouped.set(related.task.id, row);
       }
-      if (!row.types.includes(link.type)) {
-        row.types.push(link.type);
+      if (!row.types.includes(related.type)) {
+        row.types.push(related.type);
       }
     }
 
@@ -86,7 +89,17 @@ export class TaskRelatedTasksComponent {
     }));
   });
 
-  openTask(taskId: string): void {
-    this._navigateToTask.navigate(taskId, false);
+  /**
+   * Opens this task's detail panel with its "Related tasks" section expanded,
+   * rather than navigating to the related task — the panel's rows are the way
+   * to reach it. Re-selecting an already-selected task would toggle the panel
+   * closed, so only select when the task is not selected yet.
+   */
+  openRelatedTasksSection(ev: MouseEvent): void {
+    ev.stopPropagation();
+    this._relatedTasksSection.requestOpen(this.taskId());
+    if (this._taskService.selectedTaskId() !== this.taskId()) {
+      this._taskService.setSelectedId(this.taskId());
+    }
   }
 }

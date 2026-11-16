@@ -2,7 +2,7 @@ import { createMockTask } from '../../root-store/meta/task-shared-meta-reducers/
 import { Task, TaskState } from './task.model';
 import {
   getCanonicalTaskRelationship,
-  getLinkedTasksByTaskId,
+  getRelatedTasksByTaskId,
 } from './task-relationship.util';
 
 const stateOf = (tasks: Task[]): TaskState => ({
@@ -22,7 +22,7 @@ describe('getCanonicalTaskRelationship', () => {
     });
   });
 
-  describe('getLinkedTasksByTaskId', () => {
+  describe('getRelatedTasksByTaskId', () => {
     it('groups every label for each task from both endpoint perspectives', () => {
       const state = stateOf([
         createMockTask({
@@ -38,7 +38,7 @@ describe('getCanonicalTaskRelationship', () => {
         }),
       ]);
 
-      const linksByTaskId = getLinkedTasksByTaskId(state);
+      const linksByTaskId = getRelatedTasksByTaskId(state);
 
       expect(linksByTaskId.get('a')?.map(({ task, type }) => [task.id, type])).toEqual([
         ['b', 'blocks'],

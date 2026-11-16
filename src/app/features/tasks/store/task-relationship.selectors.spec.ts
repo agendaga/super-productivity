@@ -1,6 +1,6 @@
 import { TaskState, Task, TaskRelationship } from '../task.model';
 import { createMockTask } from '../../../root-store/meta/task-shared-meta-reducers/test-utils';
-import { selectLinkedTasks } from './task-relationship.selectors';
+import { selectRelatedTasks } from './task-relationship.selectors';
 
 const stateOf = (tasks: Task[]): TaskState => ({
   ids: tasks.map((t) => t.id),
@@ -22,11 +22,11 @@ const rel = (targetTaskId: string, type: TaskRelationship['type']): TaskRelation
   type,
 });
 
-describe('selectLinkedTasks', () => {
+describe('selectRelatedTasks', () => {
   it('reads an outgoing relationship with its own label', () => {
     const state = stateOf([task('a', [rel('b', 'blocks')]), task('b')]);
 
-    const result = selectLinkedTasks.projector(state, { taskId: 'a' });
+    const result = selectRelatedTasks.projector(state, { taskId: 'a' });
 
     expect(result.map((l) => [l.task.id, l.type])).toEqual([['b', 'blocks']]);
   });
@@ -34,7 +34,7 @@ describe('selectLinkedTasks', () => {
   it('reads an incoming relationship with the inverse label', () => {
     const state = stateOf([task('a'), task('b', [rel('a', 'blocks')])]);
 
-    const result = selectLinkedTasks.projector(state, { taskId: 'a' });
+    const result = selectRelatedTasks.projector(state, { taskId: 'a' });
 
     expect(result.map((l) => [l.task.id, l.type])).toEqual([['b', 'blocked by']]);
   });
@@ -43,10 +43,14 @@ describe('selectLinkedTasks', () => {
     const state = stateOf([task('a', [rel('z', 'blocked by')]), task('z')]);
 
     expect(
-      selectLinkedTasks.projector(state, { taskId: 'a' }).map((l) => [l.task.id, l.type]),
+      selectRelatedTasks
+        .projector(state, { taskId: 'a' })
+        .map((l) => [l.task.id, l.type]),
     ).toEqual([['z', 'blocked by']]);
     expect(
-      selectLinkedTasks.projector(state, { taskId: 'z' }).map((l) => [l.task.id, l.type]),
+      selectRelatedTasks
+        .projector(state, { taskId: 'z' })
+        .map((l) => [l.task.id, l.type]),
     ).toEqual([['a', 'blocks']]);
   });
 
@@ -57,8 +61,8 @@ describe('selectLinkedTasks', () => {
       task('c', [rel('a', 'related to')]),
     ]);
 
-    const fromA = selectLinkedTasks.projector(state, { taskId: 'a' });
-    const fromB = selectLinkedTasks.projector(state, { taskId: 'b' });
+    const fromA = selectRelatedTasks.projector(state, { taskId: 'a' });
+    const fromB = selectRelatedTasks.projector(state, { taskId: 'b' });
 
     expect(fromA.map((l) => [l.task.id, l.type])).toEqual([
       ['b', 'causes'],
@@ -77,7 +81,7 @@ describe('selectLinkedTasks', () => {
       task('b', [rel('a', 'blocked by')]),
     ]);
 
-    const result = selectLinkedTasks.projector(state, { taskId: 'a' });
+    const result = selectRelatedTasks.projector(state, { taskId: 'a' });
 
     expect(result.map((l) => [l.task.id, l.type])).toEqual([['b', 'blocks']]);
   });
@@ -88,7 +92,7 @@ describe('selectLinkedTasks', () => {
       task('b'),
     ]);
 
-    const result = selectLinkedTasks.projector(state, { taskId: 'a' });
+    const result = selectRelatedTasks.projector(state, { taskId: 'a' });
 
     expect(result.map((l) => l.task.id)).toEqual(['b']);
   });
@@ -97,7 +101,7 @@ describe('selectLinkedTasks', () => {
     const source = task('a', [rel('old', 'blocks')]);
     const state = stateOf([source]);
 
-    expect(selectLinkedTasks.projector(state, { taskId: 'a' })).toEqual([]);
+    expect(selectRelatedTasks.projector(state, { taskId: 'a' })).toEqual([]);
     expect(source.relationships).toEqual([rel('old', 'blocks')]);
   });
 
@@ -108,8 +112,8 @@ describe('selectLinkedTasks', () => {
       task('parent', undefined, { subTaskIds: ['b'] }),
     ]);
 
-    expect(selectLinkedTasks.projector(state, { taskId: 'a' })).toEqual([]);
-    expect(selectLinkedTasks.projector(state, { taskId: 'b' })).toEqual([]);
+    expect(selectRelatedTasks.projector(state, { taskId: 'a' })).toEqual([]);
+    expect(selectRelatedTasks.projector(state, { taskId: 'b' })).toEqual([]);
     expect(state.entities.a?.relationships).toEqual([rel('b', 'blocks')]);
   });
 
@@ -121,12 +125,12 @@ describe('selectLinkedTasks', () => {
     ]);
 
     expect(
-      selectLinkedTasks
+      selectRelatedTasks
         .projector(promotedState, { taskId: 'a' })
         .map((l) => [l.task.id, l.type]),
     ).toEqual([['b', 'blocks']]);
     expect(
-      selectLinkedTasks
+      selectRelatedTasks
         .projector(promotedState, { taskId: 'b' })
         .map((l) => [l.task.id, l.type]),
     ).toEqual([['a', 'blocked by']]);
@@ -135,6 +139,6 @@ describe('selectLinkedTasks', () => {
   it('returns nothing for a task that is not in the state', () => {
     const state = stateOf([task('b', [rel('a', 'blocks')])]);
 
-    expect(selectLinkedTasks.projector(state, { taskId: 'a' })).toEqual([]);
+    expect(selectRelatedTasks.projector(state, { taskId: 'a' })).toEqual([]);
   });
 });

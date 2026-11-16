@@ -19,7 +19,8 @@ import { MarkdownModule } from 'ngx-markdown';
 import { DEFAULT_TASK, TaskDetailTargetPanel, TaskWithSubTasks } from '../task.model';
 import { TaskDetailItemComponent } from './task-additional-info-item/task-detail-item.component';
 import { TaskContextMenuComponent } from '../task-context-menu/task-context-menu.component';
-import { TaskLinkedTasksComponent } from './task-linked-tasks/task-linked-tasks.component';
+import { TaskRelatedTasksPanelComponent } from './task-related-tasks-panel/task-related-tasks-panel.component';
+import { RelatedTasksSectionService } from '../related-tasks-section.service';
 import { T } from '../../../t.const';
 import { NavigateToTaskService } from '../../../core-ui/navigate-to-task/navigate-to-task.service';
 
@@ -132,7 +133,7 @@ describe('TaskDetailPanelComponent', () => {
       .overrideComponent(TaskContextMenuComponent, {
         set: { template: '', imports: [] },
       })
-      .overrideComponent(TaskLinkedTasksComponent, {
+      .overrideComponent(TaskRelatedTasksPanelComponent, {
         set: { template: '', imports: [] },
       })
       .compileComponents();
@@ -253,21 +254,39 @@ describe('TaskDetailPanelComponent', () => {
     }));
   });
 
-  describe('linked tasks panel', () => {
-    const linkedItem = (): HTMLElement =>
-      (fixture.nativeElement.querySelector('task-linked-tasks') as HTMLElement).closest(
-        'task-detail-item',
-      ) as HTMLElement;
+  describe('related tasks panel', () => {
+    const relatedItem = (): HTMLElement =>
+      (
+        fixture.nativeElement.querySelector('task-related-tasks-panel') as HTMLElement
+      ).closest('task-detail-item') as HTMLElement;
 
     it('sits directly below the subtask panel', () => {
-      const subTaskItem = linkedItem().previousElementSibling as HTMLElement;
+      const subTaskItem = relatedItem().previousElementSibling as HTMLElement;
 
       expect(subTaskItem.tagName.toLowerCase()).toBe('task-detail-item');
       expect(subTaskItem.textContent).toContain(T.F.TASK.ADDITIONAL_INFO.SUB_TASKS_EMPTY);
     });
 
     it('starts collapsed', () => {
-      const panel = linkedItem().querySelector('mat-expansion-panel') as HTMLElement;
+      const panel = relatedItem().querySelector('mat-expansion-panel') as HTMLElement;
+
+      expect(panel.classList).not.toContain('mat-expanded');
+    });
+
+    it('expands when a related-task row requests this task', () => {
+      TestBed.inject(RelatedTasksSectionService).requestOpen('test-task-id');
+      fixture.detectChanges();
+
+      const panel = relatedItem().querySelector('mat-expansion-panel') as HTMLElement;
+
+      expect(panel.classList).toContain('mat-expanded');
+    });
+
+    it('stays collapsed for a request belonging to another task', () => {
+      TestBed.inject(RelatedTasksSectionService).requestOpen('some-other-task');
+      fixture.detectChanges();
+
+      const panel = relatedItem().querySelector('mat-expansion-panel') as HTMLElement;
 
       expect(panel.classList).not.toContain('mat-expanded');
     });

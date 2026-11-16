@@ -1,24 +1,24 @@
-<div class="linked-tasks">
+<div class="related-tasks-panel">
   @if (rows().length) {
-    <ul class="linked-tasks__list">
+    <ul class="related-tasks-panel__list">
       @for (row of rows(); track row.key) {
-        <li class="linked-tasks__item">
-          <span class="linked-tasks__type">{{ row.typeLabelKey | translate }}</span>
+        <li class="related-tasks-panel__item">
+          <span class="related-tasks-panel__type">{{ row.typeLabelKey | translate }}</span>
           <button
-            class="linked-tasks__open"
+            class="related-tasks-panel__open"
             mat-button
-            (click)="openLinkedTask(row.link)"
+            (click)="openRelatedTask(row.related)"
           >
-            <span class="linked-tasks__title">{{ row.link.task.title }}</span>
+            <span class="related-tasks-panel__title">{{ row.related.task.title }}</span>
           </button>
           @if (row.projectTitle) {
-            <span class="linked-tasks__meta">{{ row.projectTitle }}</span>
+            <span class="related-tasks-panel__meta">{{ row.projectTitle }}</span>
           }
           <button
-            class="linked-tasks__remove"
+            class="related-tasks-panel__remove"
             mat-icon-button
-            [attr.aria-label]="T.F.TASK.LINKED_TASKS.REMOVE | translate"
-            (click)="removeLink(row)"
+            [attr.aria-label]="T.F.TASK.RELATED_TASKS.REMOVE | translate"
+            (click)="removeRelationship(row)"
           >
             <mat-icon>close</mat-icon>
           </button>
@@ -26,13 +26,13 @@
       }
     </ul>
   } @else {
-    <p class="linked-tasks__empty">{{ T.F.TASK.LINKED_TASKS.EMPTY | translate }}</p>
+    <p class="related-tasks-panel__empty">{{ T.F.TASK.RELATED_TASKS.EMPTY | translate }}</p>
   }
 
-  <div class="linked-tasks__add">
+  <div class="related-tasks-panel__add">
     <select
-      class="linked-tasks__type-select"
-      [attr.aria-label]="T.F.TASK.LINKED_TASKS.TYPE_LABEL | translate"
+      class="related-tasks-panel__type-select"
+      [attr.aria-label]="T.F.TASK.RELATED_TASKS.TYPE_LABEL | translate"
       (change)="onTypeChange($event)"
       (keydown)="$event.stopPropagation()"
     >

@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  effect,
   ElementRef,
   HostListener,
   inject,
@@ -11,6 +12,7 @@ import {
   OnDestroy,
   OnInit,
   signal,
+  untracked,
   viewChild,
   viewChildren,
 } from '@angular/core';
@@ -40,7 +42,11 @@ import { MatDialog } from '@angular/material/dialog';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edit-attachment/dialog-edit-task-attachment.component';
 import { TaskDetailItemComponent } from './task-additional-info-item/task-detail-item.component';
-import { TaskLinkedTasksComponent } from './task-linked-tasks/task-linked-tasks.component';
+import { TaskRelatedTasksPanelComponent } from './task-related-tasks-panel/task-related-tasks-panel.component';
+import {
+  RelatedTasksSectionRequest,
+  RelatedTasksSectionService,
+} from '../related-tasks-section.service';
 import { IssueData, IssueProviderJira } from '../../issue/issue.model';
 import { ICAL_TYPE, JIRA_TYPE } from '../../issue/issue.const';
 import { HISTORY_STATE, IS_ELECTRON } from '../../../app.constants';
@@ -118,7 +124,7 @@ import { isWontDoTask } from '../util/is-wont-do-task';
   imports: [
     TaskTitleComponent,
     TaskDetailItemComponent,
-    TaskLinkedTasksComponent,
+    TaskRelatedTasksPanelComponent,
     MatIcon,
     MatIconButton,
     MatTooltip,
@@ -173,9 +179,12 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   itemEls = viewChildren(TaskDetailItemComponent);
   attachmentPanelElRef = viewChild<TaskDetailItemComponent>('attachmentPanelElRef');
   noteWrapperElRef = viewChild<TaskDetailItemComponent>('noteWrapperElRef');
+  relatedTasksPanelElRef = viewChild<TaskDetailItemComponent>('relatedTasksPanelElRef');
   addSubtaskInput = viewChild(AddSubtaskInputComponent);
   addSubTaskBtn = viewChild<ElementRef<HTMLButtonElement>>('addSubTaskBtn');
   taskContextMenu = viewChild(TaskContextMenuComponent);
+
+  private readonly _relatedTasksSection = inject(RelatedTasksSectionService);
 
   // The detail panel hosts its own inline subtask draft input rather than
   // delegating to the <task> row that renders the parent: in the Planner (and
@@ -184,7 +193,65 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   // so the input is visible even when triggered while the section is collapsed.
   readonly isAddSubtaskInputVisible = signal(false);
   readonly isSubTasksExpanded = signal(false);
-  readonly isLinkedTasksExpanded = signal(false);
+  readonly isRelatedTasksSectionExpanded = signal(false);
+
+  // Reacts to a related-row click on an already-selected task (no selection
+  // change, so no taskDetailPanelTargetPanel$ emission). Fresh panel opens and
+  // task switches are handled by the same handler inside the
+  // taskDetailPanelTargetPanel$ subscription; `untracked` keeps the request
+  // write out of this effect's read set.
+  private readonly _relatedTasksSectionEffect = effect(() => {
+    const request = this._relatedTasksSection.request();
+    const task = this.task();
+    if (request && task && request.taskId === task.id) {
+      untracked(() => this._openRelatedTasksSection());
+    }
+  });
+
+  /**
+   * The request the section was last opened from, for the task still shown.
+   * The taskDetailPanelTargetPanel$ subscription fires ~50ms after a fresh
+   * panel open or task switch — after the effect above already consumed the
+   * request — and its default `_focusFirst()` would then cancel the section
+   * focus timer (both share `_focusTimeout`). The subscription reports this
+   * flag instead and skips its default focus; the flag clears once the
+   * section focus lands, so later emissions (e.g. the notes shortcut) get
+   * their normal focus handling again.
+   */
+  private _handledSectionRequest?: RelatedTasksSectionRequest;
+
+  /**
+   * Expands and focuses the "Related tasks" section when a related-task row
+   * requested it for the task currently shown. Returns whether a section
+   * open is being handled for this task — the caller must then skip its own
+   * auto-focus so the section, not the first item, receives focus and the
+   * viewport.
+   */
+  private _openRelatedTasksSection(): boolean {
+    const task = this.task();
+    if (this._handledSectionRequest && this._handledSectionRequest.taskId !== task.id) {
+      this._handledSectionRequest = undefined;
+    }
+    const request = this._relatedTasksSection.request();
+    if (request?.taskId === task.id && this._relatedTasksSection.consume(task.id)) {
+      this._handledSectionRequest = request;
+      this.isRelatedTasksSectionExpanded.set(true);
+      const sectionItem = this.relatedTasksPanelElRef();
+      if (!sectionItem) {
+        devError('this.relatedTasksPanelElRef not ready');
+        this._focusFirst();
+        return true;
+      }
+      // Focus scrolls the section into view and routes keyboard input through
+      // the panel's item navigation; the 250ms delay lets the expansion render.
+      this._scheduleTaskGuardedFocus(250, () => {
+        this._handledSectionRequest = undefined;
+        this.focusItem(sectionItem, 0);
+      });
+      return true;
+    }
+    return this._handledSectionRequest !== undefined;
+  }
 
   // Constants
   IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
@@ -584,6 +651,9 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
     this.taskService.taskDetailPanelTargetPanel$
       .pipe(takeUntilDestroyed(this._destroyRef), delay(50))
       .subscribe((v) => {
+        if (this._openRelatedTasksSection()) {
+          return;
+        }
         if (this.taskService.selectedTaskId()) {
           if (v === TaskDetailTargetPanel.Attachments) {
             const attachmentPanelElRef = this.attachmentPanelElRef();

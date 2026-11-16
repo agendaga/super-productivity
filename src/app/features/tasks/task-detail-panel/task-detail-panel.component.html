@@ -85,16 +85,17 @@
   <task-detail-item
     (collapseParent)="collapseParent()"
     (keyPress)="onItemKeyPress($event)"
-    [expanded]="isLinkedTasksExpanded()"
-    (expandedChange)="isLinkedTasksExpanded.set($event)"
+    [expanded]="isRelatedTasksSectionExpanded()"
+    (expandedChange)="isRelatedTasksSectionExpanded.set($event)"
     [type]="'panel'"
+    #relatedTasksPanelElRef
   >
     <ng-container panel-header>
       <mat-icon>link</mat-icon>
-      <span>{{ T.F.TASK.ADDITIONAL_INFO.LINKED_TASKS | translate }}</span>
+      <span>{{ T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS | translate }}</span>
     </ng-container>
     <ng-container panel-content>
-      <task-linked-tasks [task]="task()"></task-linked-tasks>
+      <task-related-tasks-panel [task]="task()"></task-related-tasks-panel>
     </ng-container>
   </task-detail-item>
   @if (task().parentId) {

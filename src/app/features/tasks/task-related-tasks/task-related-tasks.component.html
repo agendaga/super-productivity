@@ -2,32 +2,28 @@
   <ul class="related-tasks">
     @for (row of rows(); track row.task.id) {
       <li class="related-tasks__item">
-        <div class="related-tasks__title-line">
+        <button
+          class="related-tasks__open"
+          type="button"
+          (click)="openRelatedTasksSection($event)"
+        >
           <span class="related-tasks__labels">
             @for (typeLabelKey of row.typeLabelKeys; track typeLabelKey; let last = $last) {
               {{ typeLabelKey | translate }}@if (!last) {, }
             }
           </span>
-          <span class="related-tasks__separator"> · </span>
-          <button
-            class="related-tasks__open"
-            type="button"
-            (click)="$event.stopPropagation(); openTask(row.task.id)"
-          >
-            {{ row.task.title }}
-          </button>
-        </div>
-        @if (row.project; as project) {
-          <div class="related-tasks__project">
+          <span class="related-tasks__title">{{ row.task.title }}</span>
+          @if (row.project; as project) {
             <mat-icon
               class="related-tasks__project-icon"
               [class.related-tasks__project-icon--emoji]="row.isProjectIconEmoji"
               [style.color]="row.isProjectIconEmoji ? null : project.theme?.primary"
+              [matTooltip]="project.title"
+              matTooltipTouchGestures="off"
               >{{ project.icon || defaultProjectIcon }}</mat-icon
             >
-            <span>{{ project.title }}</span>
-          </div>
-        }
+          }
+        </button>
       </li>
     }
   </ul>

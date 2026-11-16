@@ -5,6 +5,16 @@ import { cssSelectors } from '../../constants/selectors';
 
 const { DETAIL_PANEL } = cssSelectors;
 
+/**
+ * The related-task rows inside a <task> element repeat the related task's
+ * title, so a plain hasText filter on <task> matches both ends of a
+ * relationship. Anchor on the task's own title element instead.
+ */
+const getTaskByTitle = (page: Page, title: string): Locator =>
+  page.locator('task').filter({
+    has: page.locator('task-title').filter({ hasText: title }),
+  });
+
 type StoredTask = {
   id: string;
   relationships: { targetTaskId: string; type: string }[];
@@ -12,7 +22,7 @@ type StoredTask = {
 
 /**
  * Reads a task's stored relationships from the NgRx store via the
- * `window.__e2eTestHelpers` hook (dev/test builds). The Linked tasks panel
+ * `window.__e2eTestHelpers` hook (dev/test builds). The Related tasks panel
  * hides dangling ids on read, so the panel alone cannot show whether a delete
  * removed the stored link; the store can.
  */
@@ -42,7 +52,7 @@ const getStoredTaskByTitle = (page: Page, title: string): Promise<StoredTask | n
     return task ? { id: task.id, relationships: task.relationships ?? [] } : null;
   }, title);
 
-test.describe('Task relationships: deleting a linked task', () => {
+test.describe('Task relationships: deleting a related task', () => {
   test.use({ locale: 'en-US', timezoneId: 'UTC' });
 
   test('hides the link while the linked task is deleted and restores it on undo', async ({
@@ -54,18 +64,20 @@ test.describe('Task relationships: deleting a linked task', () => {
     await workViewPage.addTask('Link source');
     await workViewPage.addTask('Link target');
 
-    await taskPage.openTaskDetail(taskPage.getTaskByText('Link source'));
+    await taskPage.openTaskDetail(getTaskByTitle(page, 'Link source'));
     const panel = page.locator(DETAIL_PANEL);
     await panel
       .locator('mat-expansion-panel-header')
-      .filter({ hasText: 'Linked tasks' })
+      .filter({ hasText: 'Related tasks' })
       .click();
-    const linkedTasks = panel.locator('task-linked-tasks');
+    const linkedTasks = panel.locator('task-related-tasks-panel');
 
     await linkedTasks.locator('select-task input').fill('Link target');
     await page.locator('mat-option').filter({ hasText: 'Link target' }).click();
     await expect(
-      linkedTasks.locator('.linked-tasks__item').filter({ hasText: 'Link target' }),
+      linkedTasks
+        .locator('.related-tasks-panel__item')
+        .filter({ hasText: 'Link target' }),
     ).toBeVisible();
 
     const target = await getStoredTaskByTitle(page, 'Link target');
@@ -78,18 +90,18 @@ test.describe('Task relationships: deleting a linked task', () => {
     expect(holder.relationships).toEqual(canonicalRelationship);
     expect(other.relationships).toEqual([]);
 
-    await taskPage.getTaskByText('Link target').click({ button: 'right' });
+    await getTaskByTitle(page, 'Link target').click({ button: 'right' });
     await page.locator('.mat-mdc-menu-content button.color-warn').click();
     await page.locator('[e2e="confirmBtn"]').click();
-    await expect(taskPage.getTaskByText('Link target')).toHaveCount(0);
+    await expect(getTaskByTitle(page, 'Link target')).toHaveCount(0);
 
-    await taskPage.openTaskDetail(taskPage.getTaskByText('Link source'));
+    await taskPage.openTaskDetail(getTaskByTitle(page, 'Link source'));
     await panel
       .locator('mat-expansion-panel-header')
-      .filter({ hasText: 'Linked tasks' })
+      .filter({ hasText: 'Related tasks' })
       .click();
-    await expect(linkedTasks.locator('.linked-tasks__item')).toHaveCount(0);
-    await expect(linkedTasks.locator('.linked-tasks__empty')).toBeVisible();
+    await expect(linkedTasks.locator('.related-tasks-panel__item')).toHaveCount(0);
+    await expect(linkedTasks.locator('.related-tasks-panel__empty')).toBeVisible();
 
     const sourceAfterDelete = await getStoredTaskByTitle(page, 'Link source');
     expect(sourceAfterDelete?.relationships).toEqual(
@@ -102,9 +114,11 @@ test.describe('Task relationships: deleting a linked task', () => {
     await undoButton.waitFor({ state: 'visible', timeout: 5000 });
     await undoButton.click();
 
-    await expect(taskPage.getTaskByText('Link target')).toBeVisible();
+    await expect(getTaskByTitle(page, 'Link target')).toBeVisible();
     await expect(
-      linkedTasks.locator('.linked-tasks__item').filter({ hasText: 'Link target' }),
+      linkedTasks
+        .locator('.related-tasks-panel__item')
+        .filter({ hasText: 'Link target' }),
     ).toBeVisible();
     const sourceAfterRestore = await getStoredTaskByTitle(page, 'Link source');
     const targetAfterRestore = await getStoredTaskByTitle(page, 'Link target');

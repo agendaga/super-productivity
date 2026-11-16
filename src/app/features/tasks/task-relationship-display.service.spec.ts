@@ -54,8 +54,8 @@ describe('TaskRelationshipDisplayService', () => {
   });
 
   it('updates both endpoint views when a relationship or related task changes', () => {
-    const sourceLinks = service.linkedTasksForTask('a');
-    const targetLinks = service.linkedTasksForTask('b');
+    const sourceLinks = service.relatedTasksForTask('a');
+    const targetLinks = service.relatedTasksForTask('b');
 
     expect(sourceLinks().map(({ task, type }) => [task.id, type])).toEqual([
       ['b', 'blocks'],

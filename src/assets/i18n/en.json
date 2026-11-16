@@ -1868,7 +1868,7 @@
         "TOOLTIP_ENABLE_SEARCH": "Enable issue search (Ctrl+1)",
         "TOOLTIP_NOTE": "Note (Ctrl+2)"
       },
-      "LINKED_TASKS": {
+      "RELATED_TASKS": {
         "ARCHIVED": "Archived",
         "EMPTY": "No related tasks yet.",
         "REMOVE": "Remove relationship",
@@ -1900,7 +1900,7 @@
         "DUE": "Planned for",
         "FROM_PARENT": "(from parent)",
         "ISSUE": "Issue Link",
-        "LINKED_TASKS": "Related tasks",
+        "RELATED_TASKS": "Related tasks",
         "LOCAL_ATTACHMENTS": "Local attachments",
         "NOTES": "Note",
         "PARENT": "Parent",

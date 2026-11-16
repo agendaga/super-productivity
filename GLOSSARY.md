@@ -27,3 +27,4 @@ The inverse label of `blocks`: the task's work waits on another task. Informatio
 
 **Related task**:
 A task that has a task relationship with the task currently in view.
+_Avoid_: linked tasks (older UI wording; labels are unified on "related")

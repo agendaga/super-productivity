@@ -6,7 +6,6 @@ import {
   getSuperSyncConfig,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
-import { TaskPage } from '../../pages/task.page';
 import { waitForTask } from '../../utils/supersync-helpers';
 
 interface StoredTask {
@@ -73,10 +72,10 @@ const createRelationship = async (
 ): Promise<void> => {
   await openLinkedTasks(client, sourceTitle);
   const panel = client.page.locator('task-detail-panel');
-  const linkedTasks = panel.locator('task-linked-tasks');
+  const linkedTasks = panel.locator('task-related-tasks-panel');
   await linkedTasks.locator('select-task input').fill(targetTitle);
   await client.page.getByRole('option', { name: targetTitle }).click();
-  await expect(linkedTasks.locator('.linked-tasks__item')).toHaveCount(1);
+  await expect(linkedTasks.locator('.related-tasks-panel__item')).toHaveCount(1);
 };
 
 const convertToSubTask = async (
@@ -131,15 +130,19 @@ const openLinkedTasks = async (
   client: SimulatedE2EClient,
   title: string,
 ): Promise<void> => {
-  const taskPage = new TaskPage(client.page);
   const taskTitle = client.page.locator(
     'task-detail-panel .task-title-wrapper task-title',
   );
   const header = client.page
     .locator('task-detail-panel mat-expansion-panel-header')
-    .filter({ hasText: 'Linked tasks' });
+    .filter({ hasText: 'Related tasks' });
   if (!(await taskTitle.isVisible()) || !(await taskTitle.innerText()).includes(title)) {
-    const task = taskPage.getTaskByText(title);
+    // The related-task rows inside a <task> element repeat the related task's
+    // title, so a plain hasText filter on <task> matches both ends of a
+    // relationship. Anchor on the task's own title element instead.
+    const task = client.page.locator('task').filter({
+      has: client.page.locator('task-title').filter({ hasText: title }),
+    });
     await expect(async () => {
       await task.hover();
       await task
@@ -216,7 +219,7 @@ test.describe('@supersync task relationship convergence', () => {
             ).toEqual([]);
             await openLinkedTasks(client, left);
             await expect(
-              client.page.locator('task-linked-tasks .linked-tasks__item'),
+              client.page.locator('task-related-tasks-panel .related-tasks-panel__item'),
             ).toHaveCount(1);
             await client.page.keyboard.press('Escape');
           }
@@ -225,7 +228,7 @@ test.describe('@supersync task relationship convergence', () => {
 
         await openLinkedTasks(clientB, targetTitle);
         const removeLink = clientB.page.locator(
-          'task-linked-tasks .linked-tasks__remove',
+          'task-related-tasks-panel .related-tasks-panel__remove',
         );
         await removeLink.focus();
         await removeLink.press('Enter');
@@ -312,7 +315,7 @@ test.describe('@supersync task relationship convergence', () => {
             ]);
             await openLinkedTasks(client, holderTitle);
             await expect(
-              client.page.locator('task-linked-tasks .linked-tasks__item'),
+              client.page.locator('task-related-tasks-panel .related-tasks-panel__item'),
             ).toHaveCount(0);
             await client.page.keyboard.press('Escape');
           }
