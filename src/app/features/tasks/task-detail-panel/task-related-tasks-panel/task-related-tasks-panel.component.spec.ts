@@ -12,6 +12,7 @@ import { selectAllTasks } from '../../store/task.selectors';
 import { selectRelatedTasks } from '../../store/task-relationship.selectors';
 import { createMockTask } from '../../../../root-store/meta/task-shared-meta-reducers/test-utils';
 import { selectAllProjects } from '../../../project/store/project.selectors';
+import { Project } from '../../../project/project.model';
 import { TaskRelatedTasksPanelComponent } from './task-related-tasks-panel.component';
 import { T } from '../../../../t.const';
 
@@ -50,12 +51,13 @@ describe('TaskRelatedTasksPanelComponent', () => {
     tasks: Task[],
     sourceId: string,
     archivedTasks: Task[] = [],
+    projects: Project[] = [],
   ): Promise<void> => {
     const taskState = stateOf(tasks);
     const mockStore = {
       select: (selector: unknown, props?: { taskId: string; archivedTasks?: Task[] }) =>
         selector === selectAllProjects
-          ? of([])
+          ? of(projects)
           : selector === selectAllTasks
             ? of(tasks)
             : of(selectRelatedTasks.projector(taskState, props ?? { taskId: sourceId })),
@@ -131,6 +133,41 @@ describe('TaskRelatedTasksPanelComponent', () => {
     (rows()[0].querySelector('.related-tasks-panel__open') as HTMLElement).click();
 
     expect(mockNavigate.navigate).toHaveBeenCalledOnceWith('b', false);
+  });
+
+  it('marks a different-project related task with its project icon, same-project without', async () => {
+    const otherProject = {
+      id: 'p2',
+      title: 'Other Project',
+      icon: 'list_alt',
+    } as unknown as Project;
+    await setup(
+      [
+        createMockTask({
+          id: 'a',
+          title: 'Source',
+          projectId: 'p1',
+          relationships: [rel('b', 'blocks'), rel('c', 'blocks')],
+        }),
+        createMockTask({ id: 'b', title: 'Elsewhere', projectId: 'p2' }),
+        createMockTask({ id: 'c', title: 'SamePlace', projectId: 'p1' }),
+      ],
+      'a',
+      [],
+      [otherProject],
+    );
+
+    const rowOf = (title: string): HTMLElement =>
+      rows().find((row) => (row.textContent ?? '').includes(title)) as HTMLElement;
+
+    const icon = rowOf('Elsewhere').querySelector(
+      'mat-icon.related-tasks-panel__project-icon',
+    );
+    expect(icon).not.toBeNull();
+    expect(icon?.textContent).toContain('list_alt');
+    expect(
+      rowOf('SamePlace').querySelector('.related-tasks-panel__project-icon'),
+    ).toBeNull();
   });
 
   it('adds the chosen type to this task only, keeping its existing relationships', async () => {

@@ -26,6 +26,8 @@ import {
 import { WorkContextType } from '../../work-context/work-context.model';
 import { TODAY_TAG } from '../../tag/tag.const';
 import { InlineInputComponent } from '../../../ui/inline-input/inline-input.component';
+import { TaskRelationshipDisplayService } from '../../tasks/task-relationship-display.service';
+import { RelatedTask } from '../../tasks/task-relationship.util';
 
 const makeTask = (overrides: Partial<TaskCopy> = {}): TaskCopy =>
   ({
@@ -35,6 +37,13 @@ const makeTask = (overrides: Partial<TaskCopy> = {}): TaskCopy =>
     parentId: null,
     ...overrides,
   }) as TaskCopy;
+
+// The chip counts derived relationships (stored on the lower-ID endpoint only,
+// both directions resolved at read time), so the spec drives the read service.
+const relatedTasksStub = signal<readonly RelatedTask[]>([]);
+const relationshipDisplayStub = {
+  relatedTasksForTask: () => relatedTasksStub.asReadonly(),
+};
 
 describe('PlannerTaskComponent', () => {
   let currentTaskId: WritableSignal<string | null>;
@@ -136,6 +145,7 @@ describe('PlannerTaskComponent', () => {
           },
         },
         { provide: TaskMultiSelectService, useValue: multiSelectMock },
+        { provide: TaskRelationshipDisplayService, useValue: relationshipDisplayStub },
       ],
     });
 
@@ -158,6 +168,25 @@ describe('PlannerTaskComponent', () => {
         ],
         schemas: [NO_ERRORS_SCHEMA],
       },
+    });
+  });
+
+  describe('relationships count chip', () => {
+    it('shows the derived relationship count on cards with relationships', () => {
+      relatedTasksStub.set([
+        { task: makeTask({ id: 'x' }), type: 'related to' },
+        { task: makeTask({ id: 'y' }), type: 'blocks' },
+      ]);
+      const { fixture } = create(makeTask());
+      const chip = fixture.nativeElement.querySelector('.relationship-count');
+      expect(chip?.textContent).toContain('2');
+      expect(chip?.textContent).toContain('family_history');
+    });
+
+    it('shows no relationships chip without relationships', () => {
+      relatedTasksStub.set([]);
+      const { fixture } = create(makeTask());
+      expect(fixture.nativeElement.querySelector('.relationship-count')).toBeNull();
     });
   });
 

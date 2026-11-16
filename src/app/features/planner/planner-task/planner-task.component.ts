@@ -32,6 +32,7 @@ import { DoneToggleComponent } from '../../../ui/done-toggle/done-toggle.compone
 import { SwipeBlockComponent } from '../../../ui/swipe-block/swipe-block.component';
 import { TranslatePipe } from '@ngx-translate/core';
 import { TaskMultiSelectService } from '../../tasks/task-multi-select.service';
+import { TaskRelationshipDisplayService } from '../../tasks/task-relationship-display.service';
 import { TASK_CARD_LIST } from '../../tasks/task-card-list.token';
 import { GlobalConfigService } from '../../config/global-config.service';
 import { checkKeyCombo } from '../../../util/check-key-combo';
@@ -114,6 +115,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
   private _store = inject(Store);
   private _dateService = inject(DateService);
   private _dateAdapter = inject(DateAdapter);
+  private _relationshipDisplay = inject(TaskRelationshipDisplayService);
   private _isTaskDeleteTriggered = false;
   private _isDestroyed = false;
   private _completionFocusFallback?: {
@@ -122,7 +124,14 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
   };
 
   readonly task = input.required<TaskCopy>();
-
+  /**
+   * Count of the task's relationships, both directions: they are stored on the
+   * lower-ID endpoint only, so the raw `relationships` field is empty for the
+   * other side. The detail panel's "Related tasks" section lists these.
+   */
+  readonly relationshipCount = computed(
+    () => this._relationshipDisplay.relatedTasksForTask(this.task().id)().length,
+  );
   readonly titleHasLinks = computed<boolean>(() => {
     const title = this.task().title;
     return !!title && hasLinkHints(title);

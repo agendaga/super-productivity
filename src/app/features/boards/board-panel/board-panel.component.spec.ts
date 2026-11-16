@@ -10,6 +10,7 @@ import {
   BoardPanelCfgTaskTypeFilter,
 } from '../boards.model';
 import { TaskCopy } from '../../tasks/task.model';
+import { TaskRelationshipDisplayService } from '../../tasks/task-relationship-display.service';
 import { Store } from '@ngrx/store';
 import { TaskService } from '../../tasks/task.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -109,6 +110,12 @@ const PLANNER_TASK_PROVIDERS = [
   {
     provide: DateAdapter,
     useValue: { getFirstDayOfWeek: () => 1, getDayOfWeek: () => 1 },
+  },
+  // The relationship chip on planner cards reads through this service; these
+  // specs don't exercise relationships, so an empty read keeps them isolated.
+  {
+    provide: TaskRelationshipDisplayService,
+    useValue: { relatedTasksForTask: () => signal<unknown[]>([]) },
   },
 ];
 

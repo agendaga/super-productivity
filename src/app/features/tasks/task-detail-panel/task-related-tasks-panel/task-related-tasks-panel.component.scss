@@ -16,20 +16,12 @@
 }
 
 .related-tasks-panel__type,
-.related-tasks-panel__meta,
 .related-tasks-panel__empty {
   color: var(--text-color-muted);
 }
 
-.related-tasks-panel__type,
-.related-tasks-panel__meta {
+.related-tasks-panel__type {
   flex: 0 0 auto;
-}
-
-.related-tasks-panel__meta {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .related-tasks-panel__open {
@@ -46,6 +38,19 @@
   overflow-wrap: anywhere;
   white-space: normal;
   text-align: start;
+}
+
+.related-tasks-panel__project-icon {
+  flex: 0 0 auto;
+  width: var(--font-size-xs);
+  height: var(--font-size-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-color-muted);
+  margin-left: var(--s-quarter);
+}
+
+.related-tasks-panel__project-icon--emoji {
+  font-size: var(--font-size-sm);
 }
 
 .related-tasks-panel__remove {

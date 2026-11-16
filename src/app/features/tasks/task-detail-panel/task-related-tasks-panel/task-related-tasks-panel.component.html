@@ -3,17 +3,26 @@
     <ul class="related-tasks-panel__list">
       @for (row of rows(); track row.key) {
         <li class="related-tasks-panel__item">
-          <span class="related-tasks-panel__type">{{ row.typeLabelKey | translate }}</span>
+          <span class="related-tasks-panel__type">{{
+            row.typeLabelKey | translate
+          }}</span>
           <button
             class="related-tasks-panel__open"
             mat-button
             (click)="openRelatedTask(row.related)"
           >
             <span class="related-tasks-panel__title">{{ row.related.task.title }}</span>
+            @if (row.project; as project) {
+              <mat-icon
+                class="related-tasks-panel__project-icon"
+                [class.related-tasks-panel__project-icon--emoji]="row.isProjectIconEmoji"
+                [style.color]="row.isProjectIconEmoji ? null : project.theme?.primary"
+                [matTooltip]="project.title"
+                matTooltipTouchGestures="off"
+                >{{ project.icon || defaultProjectIcon }}</mat-icon
+              >
+            }
           </button>
-          @if (row.projectTitle) {
-            <span class="related-tasks-panel__meta">{{ row.projectTitle }}</span>
-          }
           <button
             class="related-tasks-panel__remove"
             mat-icon-button
@@ -26,7 +35,9 @@
       }
     </ul>
   } @else {
-    <p class="related-tasks-panel__empty">{{ T.F.TASK.RELATED_TASKS.EMPTY | translate }}</p>
+    <p class="related-tasks-panel__empty">
+      {{ T.F.TASK.RELATED_TASKS.EMPTY | translate }}
+    </p>
   }
 
   <div class="related-tasks-panel__add">

@@ -178,6 +178,21 @@ task-priority-indicator {
       margin-right: var(--s-quarter);
     }
   }
+
+  .relationship-count {
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    line-height: var(--line-height-snug);
+    margin-top: var(--s-quarter);
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      vertical-align: middle;
+      margin-right: var(--s-quarter);
+    }
+  }
 }
 
 .original-time-remaining {

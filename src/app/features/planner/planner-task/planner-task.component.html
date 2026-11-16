@@ -75,6 +75,17 @@
             <mat-icon inline="true">account_tree</mat-icon>{{ task().subTaskIds?.length }}
           </span>
         }
+        <!-- Display-only like the subtask count: cards have no room for the
+             related-task rows; the detail panel's Related tasks section lists
+             them. The click must not open the estimate editor underneath. -->
+        @if (relationshipCount()) {
+          <span
+            class="relationship-count"
+            (click)="$event.stopPropagation()"
+          >
+            <mat-icon inline="true">family_history</mat-icon>{{ relationshipCount() }}
+          </span>
+        }
       </div>
     </div>
   </div>

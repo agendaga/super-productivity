@@ -9,11 +9,13 @@ import {
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { distinctUntilChanged, map, switchMap } from 'rxjs';
 import { T } from '../../../../t.const';
 import { NavigateToTaskService } from '../../../../core-ui/navigate-to-task/navigate-to-task.service';
+import { DEFAULT_PROJECT_ICON } from '../../../project/project.const';
 import { selectAllProjects } from '../../../project/store/project.selectors';
 import { Project } from '../../../project/project.model';
 import { SelectTaskComponent } from '../../select-task/select-task.component';
@@ -33,6 +35,7 @@ import {
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
 import { selectRelatedTasks } from '../../store/task-relationship.selectors';
+import { isSingleEmoji } from '../../../../util/extract-first-emoji';
 
 const getTypeLabelKey = (type: TaskRelationshipType): string => {
   switch (type) {
@@ -58,7 +61,14 @@ const getTypeLabelKey = (type: TaskRelationshipType): string => {
   templateUrl: './task-related-tasks-panel.component.html',
   styleUrl: './task-related-tasks-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TranslatePipe, MatButton, MatIconButton, MatIcon, SelectTaskComponent],
+  imports: [
+    TranslatePipe,
+    MatButton,
+    MatIconButton,
+    MatIcon,
+    MatTooltip,
+    SelectTaskComponent,
+  ],
 })
 export class TaskRelatedTasksPanelComponent {
   private readonly _store = inject(Store);
@@ -68,6 +78,7 @@ export class TaskRelatedTasksPanelComponent {
   readonly task = input.required<Task>();
 
   readonly T = T;
+  readonly defaultProjectIcon = DEFAULT_PROJECT_ICON;
   readonly linkableTypes = TASK_RELATIONSHIP_TYPES;
   readonly typeLabelKeyOf = getTypeLabelKey;
   readonly selectedType = signal<TaskRelationshipType>('related to');
@@ -112,14 +123,19 @@ export class TaskRelatedTasksPanelComponent {
       const isStoredHere = (task.relationships ?? []).some((r) =>
         isSameRelationship(r, relationship),
       );
+      // The icon marks a different project, like the related rows in task
+      // lists: a same-project relation reads plain, no marker by its title.
+      const project =
+        related.task.projectId && related.task.projectId !== task.projectId
+          ? projectsById.get(related.task.projectId)
+          : undefined;
       return {
         key: `${related.task.id}\n${related.type}`,
         related,
         isStoredHere,
         typeLabelKey: getTypeLabelKey(related.type),
-        projectTitle: related.task.projectId
-          ? projectsById.get(related.task.projectId)?.title
-          : undefined,
+        project,
+        isProjectIconEmoji: !!project?.icon && isSingleEmoji(project.icon),
       };
     });
   });
