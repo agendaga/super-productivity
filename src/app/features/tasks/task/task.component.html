@@ -60,6 +60,11 @@
             class="task-title"
           ></task-title>
 
+          <task-related-tasks
+            [taskId]="t.id"
+            [projectId]="t.projectId"
+          ></task-related-tasks>
+
           @if (t.tagIds?.length || t.projectId || t.repeatCfgId || t.issueId) {
             <!-- In a view, chips follow the view (like its cards), not the
                  stale active context: project shown, required tags hidden. -->

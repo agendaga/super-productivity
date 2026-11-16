@@ -26,16 +26,30 @@
   flex: 0 0 auto;
 }
 
+.linked-tasks__meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .linked-tasks__open {
   flex: 1 1 auto;
   min-width: 0;
   justify-content: flex-start;
+  height: auto;
+  white-space: normal;
 }
 
 .linked-tasks__title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: start;
+}
+
+.linked-tasks__remove {
+  flex: 0 0 auto;
 }
 
 .linked-tasks__add {

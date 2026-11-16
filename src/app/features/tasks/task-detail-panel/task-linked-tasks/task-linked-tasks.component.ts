@@ -17,7 +17,12 @@ import { NavigateToTaskService } from '../../../../core-ui/navigate-to-task/navi
 import { selectAllProjects } from '../../../project/store/project.selectors';
 import { Project } from '../../../project/project.model';
 import { SelectTaskComponent } from '../../select-task/select-task.component';
-import { Task, TaskRelationship, TaskRelationshipType } from '../../task.model';
+import {
+  Task,
+  TaskRelationship,
+  TaskRelationshipType,
+  TASK_RELATIONSHIP_TYPES,
+} from '../../task.model';
 import { TaskService } from '../../task.service';
 import {
   getCanonicalTaskRelationship,
@@ -28,14 +33,6 @@ import {
 } from '../../task-relationship.util';
 import { selectAllTasks } from '../../store/task.selectors';
 import { selectLinkedTasks } from '../../store/task-relationship.selectors';
-
-type LinkableRelationshipType = 'related to' | 'blocks' | 'causes';
-
-const LINKABLE_TYPES: readonly LinkableRelationshipType[] = [
-  'related to',
-  'blocks',
-  'causes',
-];
 
 const getTypeLabelKey = (type: TaskRelationshipType): string => {
   switch (type) {
@@ -71,9 +68,9 @@ export class TaskLinkedTasksComponent {
   readonly task = input.required<Task>();
 
   readonly T = T;
-  readonly linkableTypes = LINKABLE_TYPES;
+  readonly linkableTypes = TASK_RELATIONSHIP_TYPES;
   readonly typeLabelKeyOf = getTypeLabelKey;
-  readonly selectedType = signal<LinkableRelationshipType>('related to');
+  readonly selectedType = signal<TaskRelationshipType>('related to');
   // Bumping the key re-creates the picker after a pick, which clears its typed text.
   private readonly _pickerRemountKey = signal(0);
   readonly pickerRemountKeys = computed(() => [this._pickerRemountKey()]);
@@ -129,7 +126,7 @@ export class TaskLinkedTasksComponent {
 
   onTypeChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
-    const type = LINKABLE_TYPES.find((allowed) => allowed === value);
+    const type = TASK_RELATIONSHIP_TYPES.find((allowed) => allowed === value);
     if (type) {
       this.selectedType.set(type);
     }

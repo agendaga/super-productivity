@@ -140,6 +140,7 @@ import {
 } from '../util/get-scheduled-date-color';
 import { isWontDoTask } from '../util/is-wont-do-task';
 import { IssueSyncStateService } from '../../issue/two-way-sync/issue-sync-state.service';
+import { TaskRelatedTasksComponent } from '../task-related-tasks/task-related-tasks.component';
 
 // Outside a view: tag-list hides the open context's tag, as before.
 const NO_VIEW_TAGS_TO_HIDE = signal<string[] | undefined>(undefined).asReadonly();
@@ -197,6 +198,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
     SwipeBlockComponent,
     SelectOptionRowComponent,
     AddSubtaskInputComponent,
+    TaskRelatedTasksComponent,
   ],
 })
 export class TaskComponent implements OnDestroy, AfterViewInit {

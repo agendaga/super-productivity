@@ -1870,14 +1870,14 @@
       },
       "LINKED_TASKS": {
         "ARCHIVED": "Archived",
-        "EMPTY": "No linked tasks yet.",
-        "REMOVE": "Remove link",
-        "TYPE_BLOCKED_BY": "Blocked by",
-        "TYPE_BLOCKS": "Blocks",
-        "TYPE_CAUSED_BY": "Caused by",
-        "TYPE_CAUSES": "Causes",
+        "EMPTY": "No related tasks yet.",
+        "REMOVE": "Remove relationship",
+        "TYPE_BLOCKED_BY": "blocked by",
+        "TYPE_BLOCKS": "blocks",
+        "TYPE_CAUSED_BY": "caused by",
+        "TYPE_CAUSES": "causes",
         "TYPE_LABEL": "Relationship",
-        "TYPE_RELATED_TO": "Related to"
+        "TYPE_RELATED_TO": "related to"
       },
       "ADDITIONAL_INFO": {
         "ADD_ATTACHMENT": "Links & Files",
@@ -1900,7 +1900,7 @@
         "DUE": "Planned for",
         "FROM_PARENT": "(from parent)",
         "ISSUE": "Issue Link",
-        "LINKED_TASKS": "Linked tasks",
+        "LINKED_TASKS": "Related tasks",
         "LOCAL_ATTACHMENTS": "Local attachments",
         "NOTES": "Note",
         "PARENT": "Parent",

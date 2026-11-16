@@ -151,6 +151,56 @@ describe('TaskLinkedTasksComponent', () => {
     });
   });
 
+  it('offers every relationship label and stores the inverse reading selected here', async () => {
+    await setup(
+      [
+        createMockTask({ id: 'a', title: 'Source' }),
+        createMockTask({ id: 'b', title: 'Target' }),
+      ],
+      'a',
+    );
+
+    const select = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    expect(Array.from(select.options).map((option) => option.value)).toEqual([
+      'related to',
+      'blocks',
+      'blocked by',
+      'causes',
+      'caused by',
+    ]);
+
+    chooseType('blocked by');
+    picker().taskChange.emit(createMockTask({ id: 'b', title: 'Target' }));
+
+    expect(mockTaskService.update).toHaveBeenCalledOnceWith('a', {
+      relationships: [rel('b', 'blocked by')],
+    });
+  });
+
+  it('wraps long related-task titles while keeping the remove control available', async () => {
+    await setup(
+      [
+        createMockTask({
+          id: 'a',
+          title: 'Source',
+          relationships: [rel('b', 'blocks')],
+        }),
+        createMockTask({
+          id: 'b',
+          title:
+            'A very long related task title that should wrap instead of overlapping its remove control',
+        }),
+      ],
+      'a',
+    );
+
+    const row = rows()[0];
+    const title = row.querySelector('.linked-tasks__title') as HTMLElement;
+
+    expect(getComputedStyle(title).whiteSpace).toBe('normal');
+    expect(row.querySelector('.linked-tasks__remove')).not.toBeNull();
+  });
+
   it('stores a relationship created from the higher-ID task on the lower-ID task with its inverse label', async () => {
     await setup(
       [

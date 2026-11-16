@@ -7,20 +7,23 @@ A link from one task to another task, expressing how the two relate. It is separ
 _Avoid_: dependency (too narrow; not every relationship is a dependency), subtask link
 
 **Relationship type**:
-The kind of a task relationship: `related to`, `blocks`, or `causes`. The set is fixed by the product.
+The meaning of a task relationship: `related to`, `blocks`, or `causes`. The set is fixed by the product.
 _Avoid_: link kind, category
 
+**Relationship label**:
+The wording used to describe a relationship from one task's perspective. A directed relationship has an inverse label when read from the other task.
+
 **Source task**:
-The task a task relationship is read from. The relationship can be read from either end.
+For a directed relationship, the task that blocks or causes the other task.
 
 **Target task**:
-The task at the other end of a task relationship.
+For a directed relationship, the task that is blocked or caused by the source task.
 
 **Inverse label**:
-The reading of a task relationship from the other end, for example `blocks` read from the target is `blocked by`. A relationship and its inverse are the same fact and are never counted twice.
+The relationship label from the other task's perspective, for example `blocks` read from the target is `blocked by`. Either label can be chosen when creating the relationship; both describe the same fact, which is never counted twice.
 
 **Blocked by**:
 The inverse label of `blocks`: the task's work waits on another task. Informational only; it changes no behavior.
 
-**Linked task**:
-A task that is the source or target of a task relationship with the task currently in view.
+**Related task**:
+A task that has a task relationship with the task currently in view.

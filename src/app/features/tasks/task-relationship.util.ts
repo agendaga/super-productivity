@@ -6,6 +6,59 @@ export interface LinkedTask {
   type: TaskRelationshipType;
 }
 
+export const getLinkedTasksByTaskId = (
+  taskState: TaskState,
+): Map<string, LinkedTask[]> => {
+  const linkedTasksByTaskId = new Map<string, LinkedTask[]>();
+  const seenByTaskId = new Map<string, Set<string>>();
+
+  const add = (taskId: string, linkedTask: Task, type: TaskRelationshipType): void => {
+    if (taskId === linkedTask.id) return;
+
+    let seen = seenByTaskId.get(taskId);
+    if (!seen) {
+      seen = new Set();
+      seenByTaskId.set(taskId, seen);
+    }
+    const key = `${linkedTask.id}\n${type}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    let linkedTasks = linkedTasksByTaskId.get(taskId);
+    if (!linkedTasks) {
+      linkedTasks = [];
+      linkedTasksByTaskId.set(taskId, linkedTasks);
+    }
+    linkedTasks.push({ task: linkedTask, type });
+  };
+
+  for (const id of taskState.ids) {
+    const holder = taskState.entities[id];
+    if (!holder || holder.parentId) continue;
+
+    for (const relationship of holder.relationships ?? []) {
+      const target = taskState.entities[relationship.targetTaskId];
+      if (target && !target.parentId) {
+        add(holder.id, target, relationship.type);
+      }
+    }
+  }
+
+  for (const id of taskState.ids) {
+    const holder = taskState.entities[id];
+    if (!holder || holder.parentId) continue;
+
+    for (const relationship of holder.relationships ?? []) {
+      const target = taskState.entities[relationship.targetTaskId];
+      if (target && !target.parentId) {
+        add(target.id, holder, getInverseTaskRelationshipType(relationship.type));
+      }
+    }
+  }
+
+  return linkedTasksByTaskId;
+};
+
 type TaskRelationshipEndpoint = Pick<Task, 'id'> & {
   parentId?: string;
   subTaskIds?: readonly string[];

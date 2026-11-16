@@ -99,6 +99,22 @@ describe('SelectTaskComponent', () => {
     fixture.detectChanges();
   });
 
+  it('floats the empty picker label and preserves its suffix icon modes', () => {
+    expect(
+      fixture.nativeElement.querySelector('mat-form-field').getAttribute('floatlabel'),
+    ).toBe('always');
+    expect(fixture.nativeElement.querySelector('mat-icon')?.textContent.trim()).toBe(
+      'track_changes',
+    );
+
+    component.taskSelectCtrl.setValue('new task title');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('mat-icon')?.textContent.trim()).toBe(
+      'add',
+    );
+  });
+
   describe('filteredTasks', () => {
     it('should filter tasks by search text', () => {
       component.taskSelectCtrl.setValue('valid');
