@@ -54,6 +54,15 @@ export const APP_FEATURES_FORM_CFG: ConfigFormSection<AppFeaturesConfig> = {
       },
     },
     {
+      key: 'isRelatedTasksEnabled',
+      type: 'slide-toggle',
+      templateOptions: {
+        label: T.GCF.APP_FEATURES.RELATED_TASKS,
+        description: T.GCF.APP_FEATURES.RELATED_TASKS_HINT,
+        icon: 'family_history',
+      },
+    },
+    {
       key: 'isHabitsEnabled',
       type: 'slide-toggle',
       templateOptions: {

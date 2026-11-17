@@ -26,6 +26,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isSchedulerEnabled: true,
     isPlannerEnabled: true,
     isBoardsEnabled: true,
+    isRelatedTasksEnabled: false,
     isScheduleDayPanelEnabled: true,
     isIssuesPanelEnabled: true,
     isProjectNotesEnabled: true,

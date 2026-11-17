@@ -12,6 +12,8 @@ export type AppFeaturesConfig = Readonly<{
   isSchedulerEnabled: boolean;
   isPlannerEnabled: boolean;
   isBoardsEnabled: boolean;
+  /** Opt-in (off by default); older persisted and synced data lacks the key, which means off. */
+  isRelatedTasksEnabled?: boolean;
   // No longer read: the day panel follows isSchedulerEnabled. Kept because
   // persisted and synced data (and released clients) still carry it.
   isScheduleDayPanelEnabled: boolean;

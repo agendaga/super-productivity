@@ -82,22 +82,24 @@
       </ng-container>
     </task-detail-item>
   }
-  <task-detail-item
-    (collapseParent)="collapseParent()"
-    (keyPress)="onItemKeyPress($event)"
-    [expanded]="isRelatedTasksSectionExpanded()"
-    (expandedChange)="isRelatedTasksSectionExpanded.set($event)"
-    [type]="'panel'"
-    #relatedTasksPanelElRef
-  >
-    <ng-container panel-header>
-      <mat-icon>link</mat-icon>
-      <span>{{ T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS | translate }}</span>
-    </ng-container>
-    <ng-container panel-content>
-      <task-related-tasks-panel [task]="task()"></task-related-tasks-panel>
-    </ng-container>
-  </task-detail-item>
+  @if (isRelatedTasksEnabled()) {
+    <task-detail-item
+      (collapseParent)="collapseParent()"
+      (keyPress)="onItemKeyPress($event)"
+      [expanded]="isRelatedTasksSectionExpanded()"
+      (expandedChange)="isRelatedTasksSectionExpanded.set($event)"
+      [type]="'panel'"
+      #relatedTasksPanelElRef
+    >
+      <ng-container panel-header>
+        <mat-icon>family_history</mat-icon>
+        <span>{{ T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS | translate }}</span>
+      </ng-container>
+      <ng-container panel-content>
+        <task-related-tasks-panel [task]="task()"></task-related-tasks-panel>
+      </ng-container>
+    </task-detail-item>
+  }
   @if (task().parentId) {
     <task-detail-item
       (collapseParent)="collapseParent()"

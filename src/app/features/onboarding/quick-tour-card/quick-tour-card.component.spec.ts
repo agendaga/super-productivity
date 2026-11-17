@@ -12,6 +12,7 @@ const ALL_ON: Partial<AppFeaturesConfig> = {
   isBoardsEnabled: true,
   isSchedulerEnabled: true,
   isHabitsEnabled: true,
+  isRelatedTasksEnabled: true,
   isFocusModeEnabled: true,
   isFinishDayEnabled: true,
   isIssuesPanelEnabled: true,

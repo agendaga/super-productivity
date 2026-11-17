@@ -7,6 +7,7 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { waitForTask } from '../../utils/supersync-helpers';
+import { enableRelatedTasks } from '../../utils/app-features';
 
 interface StoredTask {
   id: string;
@@ -175,6 +176,7 @@ test.describe('@supersync task relationship convergence', () => {
         const clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
         clients.push(clientA);
         await clientA.sync.setupSuperSync(config);
+        await enableRelatedTasks(clientA.page);
         await clientA.workView.addTask(left);
         await clientA.workView.addTask(right);
         await waitForTask(clientA.page, left);
@@ -185,6 +187,7 @@ test.describe('@supersync task relationship convergence', () => {
         clients.push(clientB);
         await clientB.sync.setupSuperSync(config);
         await clientB.sync.syncAndWait();
+        await enableRelatedTasks(clientB.page);
         await waitForTask(clientB.page, left);
         await waitForTask(clientB.page, right);
         await Promise.all(clients.map(blockBackgroundSync));

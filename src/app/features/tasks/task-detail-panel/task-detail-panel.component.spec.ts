@@ -78,6 +78,9 @@ describe('TaskDetailPanelComponent', () => {
         .and.returnValue({ isMarkdownFormattingInNotesEnabled: false }),
       clipboardImages: jasmine.createSpy().and.returnValue(null),
       misc: jasmine.createSpy().and.returnValue({}),
+      appFeatures: jasmine.createSpy().and.returnValue({
+        isRelatedTasksEnabled: true,
+      }),
     });
     const mockIssueService = jasmine.createSpyObj(
       'IssueService',
@@ -527,6 +530,7 @@ describe('TaskDetailPanelComponent stale-focus guard', () => {
           useValue: {
             cfg: () => ({}),
             misc: () => ({}),
+            appFeatures: () => ({ isRelatedTasksEnabled: true }),
             tasks: () => ({ isMarkdownFormattingInNotesEnabled: false }),
           },
         },
@@ -716,6 +720,7 @@ describe('TaskDetailPanelComponent notes target does not auto-edit', () => {
           useValue: {
             cfg: () => ({}),
             misc: () => ({}),
+            appFeatures: () => ({ isRelatedTasksEnabled: true }),
             tasks: () => ({ isMarkdownFormattingInNotesEnabled: false }),
           },
         },
@@ -820,6 +825,7 @@ describe('TaskDetailPanelComponent add sub-task', () => {
           useValue: {
             cfg: () => ({ keyboard: { taskAddSubTask: 'a' } }),
             misc: () => ({}),
+            appFeatures: () => ({ isRelatedTasksEnabled: true }),
             tasks: () => ({ isMarkdownFormattingInNotesEnabled: false }),
           },
         },

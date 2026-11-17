@@ -2683,6 +2683,8 @@
       "PLANNER_HINT": "Plan your tasks across the coming days by dragging them onto specific dates.",
       "PROJECT_NOTES": "Project notes",
       "PROJECT_NOTES_HINT": "A side panel for free-form notes that belong to the current project or tag.",
+      "RELATED_TASKS": "Related tasks",
+      "RELATED_TASKS_HINT": "Shows a task's related tasks: rows under task titles, a count on cards, and the Related tasks section in the task detail panel.",
       "SCHEDULE": "Schedule",
       "SCHEDULE_HINT": "A calendar view of your days and weeks with tasks and events by time, plus a side panel to time-block today's tasks next to your list.",
       "SEARCH": "Search",

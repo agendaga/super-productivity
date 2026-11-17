@@ -65,7 +65,15 @@ describe('NEW_INSTALL_CONFIG_SECTIONS', () => {
 
   it('keeps the full defaults for filling missing keys of existing data', () => {
     // Existing users must not lose features or reminders they never touched.
-    expect(Object.values(DEFAULT_GLOBAL_CONFIG.appFeatures).every(Boolean)).toBeTrue();
+    // Related tasks is the deliberate exception: it is opt-in, so existing
+    // data without the key stays without it (off) until the user enables it.
+    const appFeatures = DEFAULT_GLOBAL_CONFIG.appFeatures;
+    expect(
+      Object.entries(appFeatures)
+        .filter(([key]) => key !== 'isRelatedTasksEnabled')
+        .every(([, value]) => value),
+    ).toBeTrue();
+    expect(appFeatures.isRelatedTasksEnabled).toBeFalse();
     expect(DEFAULT_GLOBAL_CONFIG.idle.isOnlyOpenIdleWhenCurrentTask).toBeFalse();
     expect(DEFAULT_GLOBAL_CONFIG.takeABreak.isTakeABreakEnabled).toBeTrue();
     expect(DEFAULT_GLOBAL_CONFIG.focusMode.isManualBreakStart).toBeFalse();

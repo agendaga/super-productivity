@@ -72,10 +72,12 @@
             ></tag-list>
           }
 
-          <task-related-tasks
-            [taskId]="t.id"
-            [projectId]="t.projectId"
-          ></task-related-tasks>
+          @if (isRelatedTasksEnabled()) {
+            <task-related-tasks
+              [taskId]="t.id"
+              [projectId]="t.projectId"
+            ></task-related-tasks>
+          }
         </div>
       </div>
 

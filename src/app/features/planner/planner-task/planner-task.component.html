@@ -78,7 +78,7 @@
         <!-- Display-only like the subtask count: cards have no room for the
              related-task rows; the detail panel's Related tasks section lists
              them. The click must not open the estimate editor underneath. -->
-        @if (relationshipCount()) {
+        @if (isRelatedTasksEnabled() && relationshipCount()) {
           <span
             class="relationship-count"
             (click)="$event.stopPropagation()"

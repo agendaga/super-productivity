@@ -238,6 +238,11 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   // Use shared signals from services to avoid creating 600+ subscriptions on initial render
   isCurrent = computed(() => this._taskService.currentTaskId() === this.task().id);
   isWontDo = computed(() => isWontDoTask(this.task()));
+  // Feature toggle: while off, no relationship UI renders anywhere (these
+  // rows, the card chip, the detail panel's Related tasks section).
+  isRelatedTasksEnabled = computed(
+    () => !!this._configService.appFeatures().isRelatedTasksEnabled,
+  );
   isSelected = computed(() => this._taskService.selectedTaskId() === this.task().id);
   // Part of the transient multi-selection (modifier click, Shift+Arrow, X,
   // Ctrl/Cmd+A, touch tap in selection mode).

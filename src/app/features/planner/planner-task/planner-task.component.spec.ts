@@ -125,7 +125,10 @@ describe('PlannerTaskComponent', () => {
           provide: GlobalConfigService,
           useValue: {
             cfg: () => config,
-            appFeatures: () => ({ isTimeTrackingEnabled: true }),
+            appFeatures: () => ({
+              isTimeTrackingEnabled: true,
+              isRelatedTasksEnabled: true,
+            }),
           },
         },
         { provide: MatDialog, useValue: matDialogMock },

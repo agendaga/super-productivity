@@ -2,6 +2,7 @@ import { type Page } from '@playwright/test';
 
 import { expect, test } from '../../fixtures/test.fixture';
 import { cssSelectors } from '../../constants/selectors';
+import { enableRelatedTasks } from '../../utils/app-features';
 
 const { DETAIL_PANEL } = cssSelectors;
 
@@ -61,6 +62,8 @@ test.describe('Task relationships: deleting a related task', () => {
     taskPage,
   }) => {
     await workViewPage.waitForTaskList();
+    // Related tasks is opt-in; the suite starts with it off (see app-features.ts).
+    await enableRelatedTasks(page);
     await workViewPage.addTask('Link source');
     await workViewPage.addTask('Link target');
 

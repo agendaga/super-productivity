@@ -132,6 +132,10 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly relationshipCount = computed(
     () => this._relationshipDisplay.relatedTasksForTask(this.task().id)().length,
   );
+  /** Feature toggle: while off, no relationship UI renders anywhere. */
+  readonly isRelatedTasksEnabled = computed(
+    () => !!this._configService.appFeatures().isRelatedTasksEnabled,
+  );
   readonly titleHasLinks = computed<boolean>(() => {
     const title = this.task().title;
     return !!title && hasLinkHints(title);

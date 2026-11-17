@@ -27,6 +27,11 @@ export const WANT_MORE_FEATURES: readonly WantMoreFeature[] = [
     label: T.GCF.APP_FEATURES.HABITS,
   },
   {
+    key: 'isRelatedTasksEnabled',
+    icon: 'family_history',
+    label: T.GCF.APP_FEATURES.RELATED_TASKS,
+  },
+  {
     key: 'isFocusModeEnabled',
     icon: 'center_focus_strong',
     label: T.GCF.APP_FEATURES.FOCUS_MODE,

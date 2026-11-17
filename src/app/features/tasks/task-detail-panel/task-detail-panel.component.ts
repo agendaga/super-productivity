@@ -194,6 +194,11 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   readonly isAddSubtaskInputVisible = signal(false);
   readonly isSubTasksExpanded = signal(false);
   readonly isRelatedTasksSectionExpanded = signal(false);
+  // Feature toggle: while off, no relationship UI renders anywhere (the rows
+  // under task titles, the card chip, this panel's Related tasks section).
+  readonly isRelatedTasksEnabled = computed(
+    () => !!this._globalConfigService.appFeatures().isRelatedTasksEnabled,
+  );
 
   // Reacts to a related-row click on an already-selected task (no selection
   // change, so no taskDetailPanelTargetPanel$ emission). Fresh panel opens and
@@ -229,6 +234,11 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
    */
   private _openRelatedTasksSection(): boolean {
     const task = this.task();
+    // The section is hidden while the feature is off, so nothing can request
+    // it; a request that raced a toggle expires on its own (REQUEST_TTL_MS).
+    if (!this.isRelatedTasksEnabled()) {
+      return false;
+    }
     if (this._handledSectionRequest && this._handledSectionRequest.taskId !== task.id) {
       this._handledSectionRequest = undefined;
     }
