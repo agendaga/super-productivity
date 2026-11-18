@@ -48,6 +48,7 @@ describe('TaskShortcutService', () => {
     taskScheduleDeadline: 'Shift+S',
     taskToggleDone: 'D',
     taskAddSubTask: 'A',
+    taskOpenRelatedTasks: 'R',
     taskDuplicate: 'Ctrl+D',
     taskAddAttachment: null,
     taskDelete: 'Backspace',
@@ -129,10 +130,12 @@ describe('TaskShortcutService', () => {
         keyboard: defaultKeyboardConfig,
         appFeatures: {
           isTimeTrackingEnabled: true,
+          isRelatedTasksEnabled: true,
         },
       }),
       appFeatures: signal({
         isTimeTrackingEnabled: true,
+        isRelatedTasksEnabled: true,
       }),
     };
 
@@ -264,6 +267,47 @@ describe('TaskShortcutService', () => {
       stubActiveElement(button);
 
       expect(service.handleTaskShortcuts(createKeyboardEvent('j'))).toBe(false);
+    });
+  });
+
+  describe('handleTaskShortcuts - openRelatedTasks (R key)', () => {
+    it('delegates to the focused task component openRelatedTasks method', () => {
+      const mockTaskComponent = {
+        task: () => ({ id: 'focused-task-1' }),
+        openRelatedTasks: jasmine.createSpy('openRelatedTasks'),
+        taskContextMenu: () => undefined, // No context menu open
+      };
+      setFocusedTask('focused-task-1');
+      mockTaskFocusService.lastFocusedTaskComponent.set(mockTaskComponent);
+
+      const event = createKeyboardEvent('R');
+      spyOn(event, 'preventDefault');
+
+      const result = service.handleTaskShortcuts(event);
+
+      expect(result).toBe(true);
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(mockTaskComponent.openRelatedTasks).toHaveBeenCalled();
+    });
+
+    it('does nothing when the Related tasks feature is off', () => {
+      mockConfigService.appFeatures.set({ isTimeTrackingEnabled: true });
+      const mockTaskComponent = {
+        task: () => ({ id: 'focused-task-1' }),
+        openRelatedTasks: jasmine.createSpy('openRelatedTasks'),
+        taskContextMenu: () => undefined,
+      };
+      setFocusedTask('focused-task-1');
+      mockTaskFocusService.lastFocusedTaskComponent.set(mockTaskComponent);
+
+      const event = createKeyboardEvent('R');
+      spyOn(event, 'preventDefault');
+
+      const result = service.handleTaskShortcuts(event);
+
+      expect(result).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(mockTaskComponent.openRelatedTasks).not.toHaveBeenCalled();
     });
   });
 

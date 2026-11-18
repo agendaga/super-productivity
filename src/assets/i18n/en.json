@@ -2872,6 +2872,7 @@
       "TASK_TOGGLE_DETAIL_PANEL_OPEN": "Show/hide task panel",
       "TASK_OPEN_NOTES_PANEL": "Open note/checklist in task panel",
       "TASK_OPEN_NOTES_FULLSCREEN": "Open note/checklist in fullscreen",
+      "TASK_OPEN_RELATED_TASKS": "Open related tasks in task panel",
       "TASK_TOGGLE_DONE": "Toggle task completed status",
       "TASK_TOGGLE_SELECT": "Toggle task in multi-selection",
       "TASK_UNSCHEDULE": "Unschedule task",

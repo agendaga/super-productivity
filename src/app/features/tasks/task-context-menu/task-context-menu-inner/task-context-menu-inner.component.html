@@ -166,6 +166,19 @@
     </button>
   }
 
+  @if (isRelatedTasksEnabled() && !task.parentId) {
+    <button
+      (click)="openRelatedTasks()"
+      mat-menu-item
+    >
+      <span class="menuItemLeft">
+        <mat-icon>family_history</mat-icon>
+        {{ T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS | translate }}
+      </span>
+      <span class="key-i">{{ kb.taskOpenRelatedTasks }}</span>
+    </button>
+  }
+
   @if (!task.subTaskIds.length) {
     <button
       #estimateMenuTrigger="matMenuTrigger"

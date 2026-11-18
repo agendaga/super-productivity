@@ -59,6 +59,7 @@ import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edi
 import { ProjectService } from '../../project/project.service';
 import { Project } from '../../project/project.model';
 import { DEFAULT_PROJECT_ICON } from '../../project/project.const';
+import { RelatedTasksSectionService } from '../related-tasks-section.service';
 import { T } from '../../../t.const';
 import {
   MatMenu,
@@ -207,6 +208,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   private readonly _matDialog = inject(MatDialog);
   private readonly _location = inject(Location);
   private readonly _configService = inject(GlobalConfigService);
+  private readonly _relatedTasksSection = inject(RelatedTasksSectionService);
   private readonly _attachmentService = inject(TaskAttachmentService);
   private readonly _elementRef = inject(ElementRef);
   private readonly _dateAdapter = inject(DateAdapter);
@@ -1315,6 +1317,22 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   openNotesPanel(): void {
     this._taskService.setSelectedId(this.task().id, TaskDetailTargetPanel.Notes);
     this.focusSelf();
+  }
+
+  /**
+   * `R` shortcut and context menu entry: open the detail panel with the
+   * Related tasks section expanded, like clicking a related-task row does.
+   * No-op for subtask rows, where relationship UI is hidden.
+   */
+  openRelatedTasks(): void {
+    if (this.task().parentId) {
+      return;
+    }
+    const taskId = this.task().id;
+    this._relatedTasksSection.requestOpen(taskId);
+    if (this._taskService.selectedTaskId() !== taskId) {
+      this._taskService.setSelectedId(taskId);
+    }
   }
 
   toggleSubTaskMode(): void {

@@ -265,6 +265,18 @@ export class TaskShortcutService {
       ev.preventDefault();
       return true;
     }
+    // Feature-gated: when Related tasks is off, the section is hidden
+    // everywhere and R does nothing. The task component's method skips
+    // subtask rows itself (relationship UI is hidden while either task is a
+    // subtask).
+    if (
+      checkKeyCombo(ev, keys.taskOpenRelatedTasks) &&
+      !!this._configService.appFeatures().isRelatedTasksEnabled
+    ) {
+      this._handleTaskShortcut(focusedTaskId, 'openRelatedTasks');
+      ev.preventDefault();
+      return true;
+    }
     if (checkKeyCombo(ev, keys.taskDuplicate)) {
       this._handleTaskShortcut(focusedTaskId, 'duplicateTask');
       ev.preventDefault();

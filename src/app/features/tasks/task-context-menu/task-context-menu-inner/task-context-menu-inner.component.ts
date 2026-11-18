@@ -93,6 +93,7 @@ import { DEFAULT_GLOBAL_CONFIG } from 'src/app/features/config/default-global-co
 import { MenuTreeService } from '../../../menu-tree/menu-tree.service';
 import { SelectOptionRowComponent } from '../../../../ui/select-option-row/select-option-row.component';
 import { AddSubtaskInputService } from '../../add-subtask-input/add-subtask-input.service';
+import { RelatedTasksSectionService } from '../../related-tasks-section.service';
 import { TaskDuplicateService } from '../../task-duplicate.service';
 import { TaskMoveToProjectService } from '../../task-move-to-project.service';
 import { TaskMultiSelectService } from '../../task-multi-select.service';
@@ -149,6 +150,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
   private readonly _dateService = inject(DateService);
   private readonly _menuTreeService = inject(MenuTreeService);
   private readonly _addSubtaskInputService = inject(AddSubtaskInputService);
+  private readonly _relatedTasksSection = inject(RelatedTasksSectionService);
   private readonly _taskDuplicateService = inject(TaskDuplicateService);
   private readonly _taskMoveToProjectService = inject(TaskMoveToProjectService);
   private readonly _taskMultiSelectService = inject(TaskMultiSelectService);
@@ -182,6 +184,9 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
   );
   readonly isFocusModeEnabled = computed(
     () => this._globalConfigService.appFeatures().isFocusModeEnabled,
+  );
+  readonly isRelatedTasksEnabled = computed(
+    () => !!this._globalConfigService.appFeatures().isRelatedTasksEnabled,
   );
   readonly pluginTaskContextMenuEntries = computed(() =>
     this._pluginTaskContextMenuRegistry.entriesFor(this._pluginTaskContextMenuTarget()),
@@ -618,6 +623,19 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
 
   addSubTask(): void {
     this._addSubtaskInputService.requestOpen(this.task.parentId || this.task.id);
+  }
+
+  /** Opens the detail panel with the Related tasks section expanded, like a
+   * related-task row click does. Menu item is hidden for subtask rows, where
+   * relationship UI is hidden. */
+  openRelatedTasks(): void {
+    if (this.task.parentId) {
+      return;
+    }
+    this._relatedTasksSection.requestOpen(this.task.id);
+    if (this._taskService.selectedTaskId() !== this.task.id) {
+      this._taskService.setSelectedId(this.task.id);
+    }
   }
 
   async duplicate(): Promise<void> {

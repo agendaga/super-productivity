@@ -183,6 +183,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     taskUnschedule: 'U',
     taskToggleDone: 'D',
     taskAddSubTask: 'A',
+    taskOpenRelatedTasks: 'R',
     taskDuplicate: 'Ctrl+D',
     taskAddAttachment: 'L',
     taskDelete: 'Backspace',

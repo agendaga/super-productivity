@@ -376,6 +376,7 @@ describe('TaskContextMenuInnerComponent', () => {
     const ITEM_KEYS = [
       T.F.TASK.CMP.FOCUS_SESSION,
       T.F.TASK.CMP.ADD_SUB_TASK,
+      T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS,
       T.F.TASK.CMP.ESTIMATE,
       T.F.TASK.CMP.TOGGLE_TAGS,
       T.F.TASK.CMP.MOVE_TO_OTHER_PROJECT,
@@ -397,7 +398,11 @@ describe('TaskContextMenuInnerComponent', () => {
         .filter((key): key is string => !!key);
     const openMenu = (taskOverrides: Partial<Task> = {}): void => {
       Object.assign(TestBed.inject(GlobalConfigService), {
-        appFeatures: () => ({ isFocusModeEnabled: true, isTimeTrackingEnabled: true }),
+        appFeatures: () => ({
+          isFocusModeEnabled: true,
+          isTimeTrackingEnabled: true,
+          isRelatedTasksEnabled: true,
+        }),
       });
       fixture.componentRef.setInput('isAdvancedControls', true);
       component.taskSet = {
@@ -422,6 +427,7 @@ describe('TaskContextMenuInnerComponent', () => {
       expect(itemKeys(overlayItems())).toEqual([
         T.F.TASK.CMP.FOCUS_SESSION,
         T.F.TASK.CMP.ADD_SUB_TASK,
+        T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS,
         T.F.TASK.CMP.ESTIMATE,
         T.F.TASK.CMP.TOGGLE_TAGS,
         T.F.TASK.CMP.MOVE_TO_OTHER_PROJECT,
@@ -479,6 +485,35 @@ describe('TaskContextMenuInnerComponent', () => {
       expect(shownItemBefore(T.F.TASK.CMP.MARK_WONT_DO)?.classList).toContain(
         'mat-divider',
       );
+      closeMenus();
+    }));
+
+    it('hides the related tasks item while the feature is off', fakeAsync(() => {
+      Object.assign(TestBed.inject(GlobalConfigService), {
+        appFeatures: () => ({ isFocusModeEnabled: true, isTimeTrackingEnabled: true }),
+      });
+      fixture.componentRef.setInput('isAdvancedControls', true);
+      component.taskSet = { ...DEFAULT_TASK, id: 'task-1' } as Task;
+      fixture.detectChanges();
+      component.contextMenuTrigger()?.openMenu();
+      fixture.detectChanges();
+      tick();
+      expect(
+        overlayItems().find((el) =>
+          el.textContent?.includes(T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS),
+        ),
+      ).toBeUndefined();
+      closeMenus();
+    }));
+
+    it('hides the related tasks item for subtask rows', fakeAsync(() => {
+      openMenu({ parentId: 'parent-1' });
+
+      expect(
+        overlayItems().find((el) =>
+          el.textContent?.includes(T.F.TASK.ADDITIONAL_INFO.RELATED_TASKS),
+        ),
+      ).toBeUndefined();
       closeMenus();
     }));
 
